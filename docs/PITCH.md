@@ -74,25 +74,50 @@
 
 ## Slide 5 — 🛡️ IA Responsable *(nuestro punto más fuerte)*
 
-**Visual:** tabla de dos columnas, verde y roja.
+**Visual:** las cuatro vías, como un embudo. El modelo abajo del todo.
 
-| ✅ La IA sí hace | ❌ La IA nunca hace |
-|---|---|
-| Genera ejercicios con contexto local | Responder sobre emociones o miedo |
-| Explica un error paso a paso | Calcular — la aritmética la hace el código |
-| Propone frases de lectura | Decidir cuándo activar una línea de emergencia |
-
-**Guion (40 s) — este es el momento de mayor puntaje:**
-> "Un modelo de mil millones de parámetros alucina. En contención emocional con menores, una alucinación causa daño real. Por eso toda la contención es texto pre-escrito, auditable, revisable por un profesional.
->
-> Y no se lo pedimos por confianza: **es verificable en un comando.**"
-
-```bash
-grep -rl "services/aiService" src/screens src/components
-#   → src/screens/MathScreen.jsx      (una sola pantalla)
+```
+        lo que dice el niño
+                │
+      🎯 ¿eligió una opción? ──────→ guion
+                │ no
+      🚨 ¿crisis? ────────────────→ texto fijo + 123 / 141
+                │ no                 (el modelo no ve el mensaje)
+      📖 ¿tema emocional? ────────→ contención pre-escrita
+                │ no                 (9 temas, escritos por personas)
+      🧠 charla cotidiana ────────→ aquí sí improvisa Gemma
+                                     (con filtro de entrada y salida)
 ```
 
-> "Además, el modelo nunca calcula. El código elige los números y calcula la respuesta; el modelo solo lo viste de historia. Que Gemma **no pueda** decidir sola activar el protocolo de emergencia no es una limitación que estemos disculpando: es la garantía de seguridad del producto. Un modelo alucina; un `if` no."
+**Guion (45 s) — este es el momento de mayor puntaje:**
+
+> "Un modelo de mil millones de parámetros alucina. En contención emocional con menores, una alucinación causa daño real — y lo medimos: probando Gemma con mensajes de niño, produjo la frase *'unos cuantos temblores pueden hacer que la gente se sienta más segura'*. Ningún filtro de palabras atrapa eso, porque el daño no está en las palabras, está en el sinsentido.
+>
+> Entonces no dejamos que el modelo decida cuándo hablar. Lo decide un enrutador determinista, con reglas. El modelo solo alcanza la cuarta vía: la charla cotidiana. Si el niño dice que tiene miedo, o que su casa se cayó, o algo que suene a crisis, el modelo **ni siquiera ve el mensaje**.
+>
+> Y no se lo pedimos por confianza. **Es verificable en tres segundos, aquí mismo.**"
+
+**→ Corre el test en vivo. Es la mejor evidencia que tenemos:**
+
+```bash
+npm test
+#   🚨 CRISIS — el modelo ni siquiera ve estos mensajes
+#   ok  "me quiero morir"        → CRISIS
+#   ok  "mi papá me pega"        → CRISIS
+#   📖 GUION — contención pre-escrita
+#   ok  "tengo mucho miedo"      → guion:tema_miedo
+#   ok  "mi casa se cayó"        → guion:tema_casa
+#   🧠 LIBRE — aquí sí improvisa el modelo
+#   ok  "tengo un perro Kiko"    → libre
+#
+#   ✅ Todos los casos pasan.
+```
+
+> "Ese test encontró tres huecos reales en nuestra propia capa de seguridad. Uno dejaba pasar la frase *'mucha gente murió en el temblor'*, porque la lista tenía 'muerte' y 'murieron' pero no 'murió'. Están arreglados y están en el historial del repo. Preferimos mostrarles eso a decirles que nos salió perfecto a la primera."
+
+**Y el modelo tampoco calcula:**
+
+> "El código elige los números y calcula la respuesta; el modelo solo lo viste de historia. Que Gemma **no pueda** decidir sola activar el protocolo de emergencia no es una limitación que estemos disculpando: es la garantía de seguridad del producto. Un modelo alucina; un `if` no."
 
 ---
 

@@ -82,8 +82,8 @@ No es "otro tutor con IA". El diferencial es la combinación de tres cosas:
 │grounding  │  │ online:   │    │ del sistema │  │ online:  │
 │           │  │  WebSpeech│    │             │  │  Gemini  │
 │ SIN IA    │  │           │    │             │  │          │
-│ 100% fijo │  │push-to-   │    │             │  │ SOLO     │
-│           │  │talk       │    │             │  │ contenido│
+│ 100% fijo │  │push-to-   │    │             │  │ NUNCA lo │
+│ enruta    │  │talk       │    │             │  │ emocional│
 └───────────┘  └───────────┘    └─────────────┘  └──────────┘
       ▲
       │
@@ -111,21 +111,45 @@ El backend se elige por `hostname`. El código de las pantallas es idéntico.
 
 Esta es la decisión de diseño más importante del producto.
 
-### El modelo nunca toca lo emocional
+### Cuatro vías, y el modelo solo alcanza la cuarta
 
-Un modelo de 1B alucina. En contención emocional con menores, una alucinación causa daño real. Por eso todo el contenido emocional es **texto fijo, pre-escrito y auditable** en [`src/data/dialogTree.js`](src/data/dialogTree.js), revisable por un profesional de salud mental antes de desplegarse.
+Todo lo que el niño dice —hablando o escribiendo— pasa antes por un **enrutador determinista**. Es código, no un modelo, y decide quién responde:
 
-**Y es verificable en un comando, no una promesa:**
+| | Vía | Cuándo | Quién responde |
+|---|---|---|---|
+| 🎯 | **Intención** | El niño eligió una opción hablando: *"quiero respirar"* | El guion. Hablar equivale a tocar el botón |
+| 🚨 | **Crisis** | Señales de autolesión, violencia o abuso | Texto fijo + derivación a 123/141. **El modelo no ve el mensaje** |
+| 📖 | **Guion** | Nueve temas: miedo, tristeza, sueño, casa, escuela, familia, rabia, soledad, el sismo | Contención pre-escrita, auditable por un profesional |
+| 🧠 | **Libre** | Todo lo demás: su perro, la lluvia, el arroz con coco | **Aquí sí improvisa Gemma**, con filtro de entrada y de salida |
+
+Para que el modelo llegue a hablar, el mensaje tuvo que pasar los tres filtros anteriores. El orden **es** la garantía.
+
+**Por qué la cuarta vía existe.** Sin ella esto es un menú de botones, no una conversación. Un niño de seis años que quiere contarle a Rumi que su perro se llama Kiko merece que le pregunten por el perro, y un modelo de 1B hace eso bien. Lo que no sabe hacer es contener a un niño que acaba de vivir un sismo: probándolo, Gemma 3 1B llegó a producir *"unos cuantos temblores pueden hacer que la gente se sienta más segura"*. Ningún filtro de palabras atrapa eso, porque el daño no está en las palabras sino en el sinsentido. Por eso esa franja no la toca.
+
+**Sesgo deliberado: ante la duda, guion.** Una respuesta pre-escrita de más cuesta poco. Una improvisación dañina cuesta demasiado.
+
+### Y es verificable en un comando, no una promesa
 
 ```bash
-# Solo MathScreen.jsx puede importar el servicio de IA generativa
+npm test
+```
+
+Veintiséis casos que corren en tres segundos y afirman exactamente lo de arriba: que *"me quiero morir"* y *"mi papá me pega"* nunca llegan al modelo, que los nueve temas emocionales caen en su nodo escrito, que *"yo solo quiero jugar"* **no** se confunde con soledad, y que el filtro de salida bloquea lo que un modelo pequeño se desvía a decir.
+
+> Ese test no es decorativo: al escribirlo encontró tres huecos reales que la capa de seguridad tenía. Están documentados en el historial de commits.
+
+```bash
+# Solo MathScreen.jsx puede importar el servicio de ejercicios
 grep -rl "services/aiService" src/screens src/components
 #   → src/screens/MathScreen.jsx
 
-# Solo aiService puede tocar los backends de IA
-grep -rl "services/ollama\|services/gemini" src/
-#   → src/services/aiService.js
+# Y solo dos archivos en todo el proyecto pueden hablarle a un modelo
+grep -rl "from './ollama.js'\|from './gemini.js'" src/
+#   → src/services/aiService.js      (matemáticas)
+#   → src/services/conversacion.js   (charla cotidiana, vía 4)
 ```
+
+Ninguna pantalla, ningún componente y ningún nodo del árbol de diálogo puede invocar un modelo por su cuenta.
 
 ### El modelo nunca calcula
 
@@ -144,14 +168,17 @@ Si el modelo falla, tarda o alucina, hay **redacción de respaldo** y validació
 
 Que un modelo de 1B **no pueda** activar por su cuenta el protocolo de emergencia no es una limitación que estemos disculpando: es la garantía de seguridad del producto. Un modelo alucina; un `if` no.
 
-| Herramienta | ¿Usa LLM? | ¿Toca lo emocional? |
-|---|---|---|
-| `escuchar()` | ❌ | ❌ solo mapea a un botón |
-| `hablar(texto)` | ❌ | ✅ lee guion fijo |
-| `responderEmocion(nodo)` | ❌ **nunca** | ✅ **100% pre-escrito** |
-| `generarEjercicio(tema)` | ✅ | ❌ |
-| `explicarError(ej, resp)` | ✅ | ❌ |
-| `activarDerivación()` | ❌ **nunca** | ✅ **determinista** |
+| Pieza | Archivo | ¿Usa LLM? | ¿Toca lo emocional? |
+|---|---|---|---|
+| Enrutar lo que dijo el niño | `agent/router.js` | ❌ **nunca** | ✅ decide, con reglas |
+| Detectar crisis y derivar | `agent/seguridad.js` | ❌ **nunca** | ✅ **determinista** |
+| Responder un tema emocional | `data/dialogTree.js` | ❌ **nunca** | ✅ **100% pre-escrito** |
+| Filtrar lo que el modelo va a decir | `agent/seguridad.js` | ❌ **nunca** | ✅ lo bloquea |
+| Escuchar (voz → intención) | `services/stt.js` | ❌ | ❌ mapea a un botón |
+| Hablar | `services/tts.js` | ❌ | ✅ lee el guion fijo |
+| Charlar de lo cotidiano | `services/conversacion.js` | ✅ | ❌ solo llega lo que pasó los filtros |
+| Generar un ejercicio | `services/aiService.js` | ✅ | ❌ |
+| Explicar un error de matemáticas | `services/aiService.js` | ✅ | ❌ |
 
 ### Privacidad
 
