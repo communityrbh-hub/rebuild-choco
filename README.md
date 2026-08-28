@@ -81,9 +81,9 @@ No es "otro tutor con IA". El diferencial es la combinación de tres cosas:
 │emergencia │  │  local    │    │ voz LOCAL   │  │  1B      │
 │grounding  │  │ online:   │    │ del sistema │  │ online:  │
 │           │  │  WebSpeech│    │             │  │  Gemini  │
-│ SIN IA    │  │           │    │             │  │          │
-│ 100% fijo │  │push-to-   │    │             │  │ NUNCA lo │
-│ enruta    │  │talk       │    │             │  │ emocional│
+│ SIN IA    │  │ micrófono │    │ cola por    │  │ streaming│
+│ 100% fijo │  │ SIEMPRE   │    │ frases ·    │  │ frase a  │
+│ enruta    │  │ abierto   │    │ se corta ya │  │ frase    │
 └───────────┘  └───────────┘    └─────────────┘  └──────────┘
       ▲
       │
@@ -99,11 +99,60 @@ El backend se elige por `hostname`. El código de las pantallas es idéntico.
 | Capacidad | 🔌 Offline (el producto real) | 🌐 Online (vitrina para el jurado) |
 |---|---|---|
 | 🧠 Cerebro | **Gemma 3 1B** vía Ollama | **Gemini 3.1 Flash Lite** |
-| 👂 Oído | **Whisper-tiny** local (WASM) | **Web Speech API** |
+| 👂 Oído | **Whisper-base** local, en la GPU vía WebGPU (con respaldo en CPU) | **Web Speech API** |
 | 🗣️ Voz | `speechSynthesis`, voz local del SO | `speechSynthesis` |
 | 💾 Datos | `localStorage` — nada sale del equipo | `localStorage` |
 
-> **Honestidad sobre el trade-off:** el oído offline es más lento que el online. Es una limitación del CPU, no un defecto de implementación. Se mitiga con push-to-talk (frases de 1-3 s) y se declara abiertamente.
+> **Honestidad sobre el trade-off:** el oído offline es más lento que el online. Es una limitación del CPU, no un defecto de implementación. Se mitiga con turnos cortos y se declara abiertamente.
+
+### Modo de voz: por qué no es un chat con un botón de micrófono
+
+El producto es una **conversación continua**, no un intercambio de turnos. Tres piezas lo sostienen, y las tres son idénticas offline y online:
+
+| Pieza | Qué hace | Por qué |
+|---|---|---|
+| **Se le puede interrumpir** | El micrófono sigue midiendo mientras Rumi habla (`sesion.vigilar()`). Voz sostenida encima → calla a media frase y aborta la generación | Esperar a que el osito termine su turno es un walkie-talkie. Una persona a la que interrumpen deja de hablar |
+| **Habla antes de terminar de pensar** | La respuesta llega por streaming y se habla frase a frase (`crearLocutor`) | El tiempo hasta el primer sonido deja de depender de lo larga que sea la respuesta ni de lo lento que vaya el modelo |
+| **Rellena el hueco con la voz** | Si la primera frase tarda más de 950 ms, Rumi dice "mmm, a ver" | Es lo que hace una persona mientras piensa. Un "está pensando…" en pantalla no lo lee un niño de seis años |
+
+**Medido en esta máquina (CPU, sin GPU):**
+
+| Tramo | Antes | Ahora |
+|---|---|---|
+| Primer token de Gemma 3 1B | — | **467 ms** |
+| Respuesta completa del modelo | ~3,8 s (había que esperarla entera) | 1,0 s, y ya no hay que esperarla |
+| Del fin de la frase a la primera vocalización | 4–9 s | **~950 ms**, offline y online |
+| Fin de frase por silencio | 1100 ms | 750 ms |
+| Transcripción offline (frase de 2 s) | 4,8 s en CPU · 18 s con modelos duplicados | **~3 s** en GPU |
+| Calidad offline | "temblor" → "templo" | "temblor" ✓ |
+
+#### El oído offline: por qué no contestaba, y qué se cambió
+
+La versión online funcionaba y la offline no: se le hablaba y no pasaba nada. La auditoría encontró **cinco fallos distintos**, y ninguno se veía desde fuera — todos producen el mismo síntoma mudo.
+
+| # | Fallo | Cómo se encontró | Arreglo |
+|---|---|---|---|
+| 1 | **Varias instancias de Whisper a la vez.** `cargar()` no memoizaba la promesa, así que el segundo aviso de arranque —React monta los efectos dos veces en desarrollo— levantaba otro modelo entero. Dos Whisper compitiendo por la misma GPU no fallan: van despacio | La misma frase tardaba **3 s aislada y 18 s dentro de la app** | Se guarda la promesa de carga: el segundo en llegar espera al primero |
+| 2 | **El motor cargaba y devolvía basura.** Con el codificador en fp16 sobre la GPU Intel, el modelo arranca sin un solo error y transcribe **"que"** para cualquier audio | Banco de pruebas con tres frases grabadas (`public/pruebas`) | Cada configuración tiene que **entender un audio conocido** antes de que se le confíe la voz de un niño (`public/oido-referencia.wav`) |
+| 3 | **Se perdía la primera sílaba.** `MediaRecorder` arrancaba cuando el detector ya había confirmado voz | "hoy jugué" se transcribía como "hoy juguenas" | Captura continua por `AudioWorklet` con **medio segundo de buffer circular**: cuando se detecta voz, el arranque de la palabra ya está guardado |
+| 4 | **El audio llegaba muy bajo.** Un micrófono de portátil a medio metro da picos de 0,1; Whisper se entrenó con audio normalizado y ante señal así devuelve "[Música]" o nada | Traza `pico` y `ganancia` en cada segmento | Normalización con tope de ganancia (nunca amplificar el silencio) |
+| 5 | **Con altavoces, hablarle encima no servía de nada.** Si la voz del niño no superaba el umbral de interrupción, su frase entera se tiraba sin transcribir | Lectura del código guiada por el síntoma | Ahora se transcribe igual y **decide el texto**: si no se parece a lo que Rumi está diciendo, es el niño |
+
+Y dos que no eran fallos sino física del entorno: **una televisión encendida** produce segmentos de 23 s que Whisper tarda 20 en transcribir (tope bajado a 7 s, y al modelo solo van los últimos 8), y **el silencio de los bordes** —el pre-roll más los 750 ms que cierran la frase— alargaba cada transcripción sin aportar nada (ahora se recorta por energía).
+
+**El cambio de fondo: el oído pasó de la CPU a la GPU.** Whisper en WASM costaba 4,8 s por frase y confundía "temblor" con "templo". Con WebGPU y `whisper-base` entiende bien y baja a ~3 s. Sigue siendo inferencia local, en el dispositivo, sin red: cambia el procesador, no la promesa.
+
+**Y lo que hace que 3 segundos se puedan vivir:** en cuanto el niño se calla, antes de saber qué dijo, Rumi suelta un "mmm" — como haría cualquiera mientras piensa. La espera no se acorta; deja de ser un silencio. Es la diferencia entre "está pensando" y "no me oyó".
+
+> **Diagnóstico en un botón.** El panel del docente tiene una **prueba del oído**: pasa una frase grabada por el mismo camino que la voz del niño y dice qué motor corre, qué entendió y cuánto tardó. Existe porque "no me contesta" tiene cinco causas que se ven idénticas, y adivinar cuál es cuesta más que medirla.
+
+#### El problema del altavoz, y cómo se resolvió
+
+La cancelación de eco del navegador **no cancela al sintetizador**: `speechSynthesis` no pasa por WebAudio, lo reproduce el sistema operativo. Medido aquí, con los altavoces del portátil, mientras Rumi hablaba el micrófono registraba entre **0,074 y 0,17 de RMS sobre un fondo de 0,01**.
+
+Con un umbral fijo, Rumi se interrumpía a sí mismo en la primera frase, grababa doce segundos de su propia voz y se los mandaba a Whisper, que devolvía frases sin sentido que entraban en la conversación como si fueran del niño. Se ve entero en la traza `[voz]` de la consola.
+
+La solución no es comparar contra el silencio sino **contra el eco**: se mide cuánto se cuela la propia voz de Rumi y se exige superarla con holgura (`nivelEco * 1.8`). El niño está mucho más cerca del micrófono que el altavoz; el altavoz, por definición, no se supera a sí mismo. Con auriculares no hay eco y el umbral cae solo al mínimo. Encima va un segundo filtro, de texto: si lo transcrito coincide en más del 60 % con lo que Rumi acaba de decir, es su eco y se descarta (`pareceEco`).
 
 ---
 
@@ -209,6 +258,7 @@ Solo números verificados: **123** (emergencias nacional) y **141** (ICBF, prote
 
 | Tecnología | Para qué | Por qué esa y no otra |
 |---|---|---|
+| **Whisper base** | Oído offline | Corre en la GPU integrada con WebGPU: local, sin red. `tiny` era un segundo más rápido y confundía "temblor" con "templo" |
 | **Gemma 3 1B** | Cerebro offline | Pesos abiertos, 815 MB, corre en CPU sin GPU. Es el modelo que la documentación de Google recomienda para inferencia on-device |
 | **Gemini 3.1 Flash Lite** | Cerebro de la vitrina online | Latencia baja y filtros de seguridad configurables. Lite y no un flash grande a propósito: los modelos de razonamiento gastan parte del presupuesto de salida en pensar y devuelven la frase cortada |
 | **Firebase Hosting** | Vitrina web | Despliegue estático inmediato para que el jurado explore sin instalar nada |
@@ -264,6 +314,16 @@ npm run dev
 # 4. Desconectar el WiFi y usarla.
 ```
 
+Al entrar en «Hablar con Rumi» no hay nada que tocar: se le habla y contesta.
+**Se le puede interrumpir en mitad de una frase**, que es la prueba de que el
+ciclo es full-duplex y no una sucesión de turnos.
+
+> **Con altavoces, interrumpirlo cuesta más que con auriculares.** El
+> navegador no cancela el eco del sintetizador (ver arriba), así que el niño
+> tiene que hablar más fuerte que el altavoz para que se le distinga. Con
+> auriculares no hay eco y basta con hablar normal. Para grabar la demo,
+> auriculares.
+
 ### Modo online — la vitrina
 
 ```bash
@@ -299,9 +359,11 @@ src/
 │   ├── aiService.js              🧠 ejercicios y explicaciones
 │   ├── ollama.js                     backend offline · Gemma 3
 │   ├── gemini.js                     backend online
-│   ├── stt.js                    👂 Whisper local / Web Speech
-│   ├── vad.js                        detecta cuándo el niño terminó de hablar
-│   └── tts.js                    🗣️ fuerza voz LOCAL del sistema
+│   ├── stt.js                    👂 Whisper local / Web Speech · micrófono
+│   │                                 permanente, VAD calibrado a la sala y
+│   │                                 detección de interrupción sobre el eco
+│   └── tts.js                    🗣️ voz LOCAL del sistema · locutor en cola
+│                                     que habla frase a frase y se corta ya
 ├── components/
 │   ├── RumiAvatar.jsx                SVG + animaciones CSS
 │   ├── ChatBubble.jsx                burbuja de mensaje

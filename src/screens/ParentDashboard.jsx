@@ -10,10 +10,12 @@
  * ve la señal y decide. La IA nunca cierra un caso ni deriva sola.
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, AlertTriangle, MapPin, BookOpen } from 'lucide-react';
+import { ArrowLeft, TrendingUp, AlertTriangle, MapPin, BookOpen, Ear } from 'lucide-react';
 import AISafetyCard from '../components/AISafetyCard';
 import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
+import { infoOido, precargarWhisper, probarOido, modoSTT } from '../services/stt';
 
 const mockData = {
   nombre: 'Yeison',
@@ -31,6 +33,89 @@ const mockData = {
     'Yeison reportó miedo 2 veces esta semana. La tendencia mejora, pero si vuelve a aparecer, considera hablar con un profesional de apoyo psicosocial.',
   brechaMatematicas: 'Multiplicación: 3 de 5 aciertos — conviene practicar más',
 };
+
+/**
+ * Prueba del oído — para no tener que adivinar por qué no responde
+ * ================================================================
+ *
+ * "Le hablo y no me contesta" tiene al menos cinco causas distintas que desde
+ * fuera se ven idénticas: falta el permiso del micrófono, el modelo todavía
+ * se está descargando, el motor cargó pero devuelve basura, hay demasiado
+ * ruido en la sala, o simplemente tarda. Cada una se arregla de otra manera.
+ *
+ * Este botón las separa: pasa un audio conocido por la misma ruta que la voz
+ * del niño y enseña qué entendió, con qué motor y cuánto tardó. Va en el
+ * panel del docente porque es quien puede hacer algo con la respuesta.
+ */
+function PruebaDeOido() {
+  const [estado, setEstado] = useState('listo');
+  const [resultado, setResultado] = useState(null);
+
+  if (modoSTT !== 'local') return null; // online el oído es el del navegador
+
+  async function probar() {
+    setEstado('probando');
+    setResultado(null);
+    try {
+      await precargarWhisper();
+      const r = await probarOido(new URL('oido-referencia.wav', document.baseURI).href);
+      setResultado({ ...r, info: infoOido() });
+      setEstado('listo');
+    } catch (e) {
+      setResultado({ error: String(e?.message || e) });
+      setEstado('listo');
+    }
+  }
+
+  const esperado = 'el gato duerme en la casa';
+  const bien = resultado?.texto
+    && ['gato', 'duerme', 'casa'].filter((w) => resultado.texto.toLowerCase().includes(w)).length >= 2;
+
+  return (
+    <div className="tarjeta">
+      <div className="fila mb-8">
+        <Ear size={18} color="var(--primario)" />
+        <strong>Prueba del oído</strong>
+      </div>
+      <p className="sec" style={{ marginTop: 0 }}>
+        Pasa una frase grabada («{esperado}») por el mismo camino que usa la voz
+        del niño. Dice qué motor está corriendo, qué entendió y cuánto tardó.
+      </p>
+
+      <button className="btn btn-suave" onClick={probar} disabled={estado === 'probando'}>
+        {estado === 'probando' ? 'Probando…' : 'Probar el oído'}
+      </button>
+
+      {estado === 'probando' && (
+        <p className="sec" style={{ marginBottom: 0 }}>
+          La primera vez descarga el modelo: puede tardar un minuto.
+        </p>
+      )}
+
+      {resultado?.error && (
+        <p className="sec" style={{ color: 'var(--alerta)', marginBottom: 0 }}>
+          No se pudo probar: {resultado.error}
+        </p>
+      )}
+
+      {resultado?.texto !== undefined && (
+        <div style={{ marginTop: 10, fontSize: 13.5, lineHeight: 1.7 }}>
+          <div>
+            <strong style={{ color: bien ? 'var(--exito)' : 'var(--alerta)' }}>
+              {bien ? '✓ Entiende bien' : '✗ No entendió la frase'}
+            </strong>
+          </div>
+          <div>Entendió: «{resultado.texto || '—'}»</div>
+          <div className="sec">
+            Motor: <code>{resultado.info?.configuracion || '—'}</code> ·
+            {' '}tardó {(resultado.msTranscripcion / 1000).toFixed(1)} s ·
+            {' '}{resultado.info?.webgpu ? 'GPU disponible' : 'sin GPU, va por CPU'}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Señales reales guardadas en este dispositivo, si las hay. */
 function leerLocal() {
@@ -130,6 +215,8 @@ export default function ParentDashboard() {
         </div>
         <p style={{ margin: 0, fontSize: 15 }}>{mockData.brechaMatematicas}</p>
       </div>
+
+      <PruebaDeOido />
 
       <AISafetyCard />
 

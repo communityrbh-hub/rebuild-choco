@@ -28,6 +28,7 @@
 import * as ollama from './ollama.js';
 import * as gemini from './gemini.js';
 import { esLocal } from './runtime.js';
+import { partirFrases } from './tts.js';
 import { revisarEntrada, revisarSalida } from '../agent/seguridad.js';
 import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
@@ -44,10 +45,12 @@ function sistema() {
 Hace poco hubo un temblor fuerte en su pueblo.
 
 CÓMO HABLAS:
+- Te van a ESCUCHAR, no leer: escribe como se habla.
 - Frases muy cortas. Máximo 2 oraciones.
 - Palabras simples, como para un niño de 7 años.
 - Cálido y tranquilo. Nunca asustas.
 - Siempre en español.
+- Nada de emojis, listas, guiones ni asteriscos.
 - Terminas con una pregunta corta para que el niño siga hablando.
 
 SI EL NIÑO HABLA DE MIEDO O TRISTEZA:
@@ -147,6 +150,143 @@ export async function conversar(mensaje, historial = []) {
   return {
     texto: texto || azar(RESPALDOS),
     fuente: texto ? 'ia' : 'respaldo',
+    derivar: entrada.nivel === 'angustia',
+    sugerencias,
+  };
+}
+
+/* ============================================================
+   Versión en streaming — la que usa el modo conversación
+   ============================================================ */
+
+/*
+ * Andamiaje: los modelos pequeños tienden a seguir escribiendo el diálogo por
+ * su cuenta ("Niño: ...", "Rumi: ..."). En la versión sin streaming eso se
+ * recortaba al final; aquí hay que detectarlo EN VIVO, porque si no la frase
+ * inventada ya salió por el altavoz y no se puede retirar.
+ */
+const ANDAMIAJE = /\n\s*(niño|nino|rumi|child|user|assistant)\s*:/i;
+
+/**
+ * Responde al niño entregando la respuesta FRASE A FRASE, según se escribe.
+ *
+ * Esta es la diferencia entre "el osito contesta" y "el osito conversa": el
+ * turno del niño termina y Rumi empieza a sonar unos cientos de milisegundos
+ * después, no cuando el modelo terminó de escribir el párrafo entero.
+ *
+ * LA CAPA 3 SIGUE INTACTA, Y ESO CONDICIONA EL DISEÑO.
+ * Cada frase pasa por `revisarSalida` ANTES de emitirse. Una frase que no
+ * pasa no solo se descarta: se corta la generación entera ahí mismo, porque
+ * un modelo que se desvió a la mitad no suele volver solo. Revisar frase a
+ * frase es más estricto que revisar el párrafo completo, no menos: el mismo
+ * filtro se aplica más veces y sobre unidades más pequeñas.
+ *
+ * @param {string}   mensaje    lo que dijo el niño
+ * @param {Array}    historial  turnos previos [{de:'nino'|'rumi', texto}]
+ * @param {object}   opciones   onFrase(texto) por cada frase aprobada
+ * @returns {Promise<{texto:string, fuente:string, derivar?:boolean, sugerencias?:Array}>}
+ */
+export async function conversarStream(mensaje, historial = [], { onFrase, señal } = {}) {
+  /* --- CAPA 1: seguridad de entrada. El modelo no ve esto. --- */
+  const entrada = revisarEntrada(mensaje);
+
+  if (entrada.nivel === 'crisis') {
+    onFrase?.(entrada.respuesta);
+    return {
+      texto: entrada.respuesta,
+      fuente: 'seguridad',
+      derivar: true,
+      sugerencias: [
+        { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos', next: 'respiracion' },
+      ],
+    };
+  }
+
+  const sugerencias = [];
+  if (entrada.nivel === 'angustia') {
+    sugerencias.push(
+      { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos', next: 'respiracion' },
+      { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento', next: 'cuento' },
+    );
+  }
+
+  let buffer = '';     // texto recibido que todavía no cierra una frase
+  let emitido = '';    // lo que ya salió por el altavoz
+  let censurado = false;
+
+  /** Devuelve false cuando hay que cortar la generación. */
+  function digerir(pedazo, forzar = false) {
+    buffer += pedazo;
+
+    // Se puso a inventar turnos: lo que venga después ya no es su respuesta.
+    const corte = buffer.search(ANDAMIAJE);
+    if (corte >= 0) {
+      buffer = buffer.slice(0, corte);
+      forzar = true;
+    }
+
+    // Los modelos pequeños repiten la etiqueta del prompt en la primera línea.
+    if (!emitido) buffer = buffer.replace(/^\s*rumi\s*:\s*/i, '');
+
+    const frases = partirFrases(buffer);
+    if (!frases.length) return !forzar;
+
+    const ultima = frases[frases.length - 1];
+    const cerrada = /[.!?…]["'»)]?\s*$/.test(ultima);
+    const listas = forzar || cerrada ? frases : frases.slice(0, -1);
+    if (!listas.length) return true;
+
+    buffer = forzar || cerrada ? '' : ultima;
+
+    for (const frase of listas) {
+      /* --- CAPA 3: seguridad de salida, frase por frase --- */
+      if (!revisarSalida(frase).ok) {
+        censurado = true;
+        return false;
+      }
+      emitido += `${emitido ? ' ' : ''}${frase}`;
+      onFrase?.(frase);
+
+      // Dos oraciones es el límite del rol. Si el modelo sigue, se le corta:
+      // un monólogo largo le quita el turno al niño.
+      if (partirFrases(emitido).length >= 3) return false;
+    }
+    return !forzar;
+  }
+
+  try {
+    await backend.generarStream(construirPrompt(mensaje, historial), {
+      maxTokens: 80,
+      temperatura: 0.75,
+      señal: señal || AbortSignal.timeout(20000),
+      onTexto: (p) => digerir(p),
+    });
+    // Lo que quedara en el buffer sin punto final. No se hace si ya se cortó
+    // por censura o por longitud: en ese caso el buffer contiene justo lo que
+    // se decidió no decir.
+    if (!censurado && partirFrases(emitido).length < 3) digerir('', true);
+  } catch {
+    /* sin backend, cortado por el niño o tiempo agotado: se resuelve abajo */
+  }
+
+  if (!emitido) {
+    // Nada utilizable: Rumi no se queda mudo nunca.
+    const respaldo = azar(RESPALDOS);
+    onFrase?.(respaldo);
+    return { texto: respaldo, fuente: 'respaldo', derivar: entrada.nivel === 'angustia', sugerencias };
+  }
+
+  if (censurado) {
+    // Ya sonó algo bueno y luego se desvió. Se cierra con algo seguro para
+    // que el turno no termine a media frase.
+    const cierre = 'Mejor cuéntame otra cosa. ¿Qué estás haciendo hoy?';
+    onFrase?.(cierre);
+    emitido += ` ${cierre}`;
+  }
+
+  return {
+    texto: emitido,
+    fuente: censurado ? 'respaldo' : 'ia',
     derivar: entrada.nivel === 'angustia',
     sugerencias,
   };

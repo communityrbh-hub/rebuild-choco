@@ -572,3 +572,156 @@ code { font-size: .88em; background: var(--fondo-alt); padding: 1px 5px; border-
   margin: 12px 0 0;
   opacity: .75;
 }
+
+/* ============================================================
+   ESCENA DE VOZ — la pantalla completa es la conversación
+   ============================================================
+
+   Aquí no hay lista de mensajes ni menú de opciones: hay un osito grande,
+   la frase que se está diciendo justo ahora, y tres botones que no hacen
+   falta para conversar. Un niño de seis años no lee interfaces; mira una
+   cara y escucha. Todo lo demás compite con eso.
+
+   Las sugerencias solo aparecen tras un silencio largo, y la barra de
+   abajo se mantiene deliberadamente pobre: cuantas menos cosas haya que
+   tocar, más obvio es que se puede simplemente hablar.
+   ============================================================ */
+
+.escena-voz {
+  width: 100%;
+  max-width: var(--max-ancho);
+  margin: 0 auto;
+  padding: 14px 20px 20px;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  animation: entrar .32s ease-out;
+}
+
+.escena-arriba { flex-shrink: 0; }
+
+.escena-centro {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 4px;
+  padding: 8px 0;
+  /* Una respuesta larga de guion desborda una pantalla de móvil. Que
+     desborde HACIA DENTRO: la barra de abajo y el botón de emergencia tienen
+     que seguir donde estaban, pase lo que pase con el texto. */
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.escena-abajo { flex-shrink: 0; }
+
+/* El halo: la única pieza que reacciona al volumen de la voz del niño.
+   Comunica "te estoy oyendo" sin una sola palabra escrita. */
+.halo-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+}
+
+.halo {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 162, 97, .22) 0%, rgba(244, 162, 97, 0) 70%);
+  transition: transform .1s ease-out;
+  pointer-events: none;
+}
+
+.halo-escucha {
+  background: radial-gradient(circle, rgba(231, 111, 81, .2) 0%, rgba(231, 111, 81, 0) 70%);
+}
+
+/* Lo que Rumi está diciendo. Grande, porque a veces el niño lee con un
+   adulto al lado, y porque es el contenido principal de la pantalla. */
+.subtitulo {
+  /* Se encoge en pantallas estrechas en vez de empujar la escena entera */
+  font-size: clamp(17px, 4.6vw, 21px);
+  font-weight: 620;
+  line-height: 1.42;
+  letter-spacing: -.3px;
+  margin: 6px 0 2px;
+  min-height: 62px;
+  max-width: 400px;
+}
+
+/* Lo que el niño está diciendo ahora mismo: presente pero secundario. */
+.subtitulo-nino {
+  font-size: 15px;
+  font-weight: 560;
+  color: var(--texto-sec);
+  margin: 2px 0 0;
+  font-style: italic;
+}
+
+.ondas {
+  justify-content: center;
+  gap: 5px;
+  height: 44px;
+  margin-top: 6px;
+}
+
+.sugerencias-voz {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  animation: entrar .4s ease-out;
+}
+
+/* Estado del turno, arriba a la derecha: pequeño, para el adulto que mira */
+.pastilla-estado {
+  font-size: 11.5px;
+  font-weight: 680;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--fondo-alt);
+  color: var(--texto-sec);
+  border: 1px solid var(--borde);
+}
+
+.pastilla-estado.escuchando { color: var(--alerta);   border-color: rgba(231, 111, 81, .45); }
+.pastilla-estado.rumi_habla { color: var(--primario-osc); border-color: rgba(244, 162, 97, .5); }
+.pastilla-estado.pensando   { color: var(--texto-sec); }
+
+.btn-redondo {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 1.5px solid var(--borde);
+  background: var(--superficie);
+  color: var(--texto-sec);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--sombra-sm);
+  transition: transform .12s ease, border-color .15s ease;
+}
+
+.btn-redondo:hover  { border-color: var(--primario); color: var(--primario-osc); }
+.btn-redondo:active { transform: scale(.94); }
+
+/* Terminar es la acción destacada: es la única salida evidente de una
+   pantalla que, por diseño, no termina sola. */
+.btn-redondo-salir {
+  width: 62px;
+  height: 62px;
+  background: linear-gradient(158deg, #F8B173 0%, var(--primario) 52%, #EE9550 100%);
+  border-color: transparent;
+  color: #FFF;
+  box-shadow: var(--sombra-pri);
+}
+
+.btn-redondo-salir:hover { color: #FFF; border-color: transparent; filter: brightness(1.04); }

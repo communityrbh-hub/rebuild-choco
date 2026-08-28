@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Heart, Users, MapPin, Volume2, WifiOff } from 'lucide-react';
+import { GraduationCap, Mic, Users, MapPin, Volume2, WifiOff } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
 import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 import { hablar, callar } from '../services/tts';
@@ -116,11 +116,13 @@ export default function ActivationScreen() {
       <div className="espaciador" style={{ minHeight: 10 }} />
 
       {/* --- Las tres puertas --- */}
-      <button className="btn btn-primario" onClick={() => navigate('/math')}>
-        <GraduationCap size={21} /> Quiero aprender
+      {/* Hablar es la puerta principal: el producto es una conversación, no
+          un menú. Va primero y con el peso visual del botón primario. */}
+      <button className="btn btn-primario" onClick={() => navigate('/chat')}>
+        <Mic size={21} /> Hablar con Rumi
       </button>
-      <button className="btn btn-secundario" onClick={() => navigate('/chat')}>
-        <Heart size={21} /> Me siento asustado
+      <button className="btn btn-suave" onClick={() => navigate('/math')}>
+        <GraduationCap size={21} /> Quiero aprender
       </button>
       <button className="btn btn-suave" onClick={() => navigate('/padre')}>
         <Users size={21} /> Soy docente o cuidador
