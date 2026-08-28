@@ -9,7 +9,15 @@
  */
 
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const MODELO = 'gemini-1.5-flash';
+/*
+ * `gemini-1.5-flash` fue retirado: la API responde 404 a los usuarios nuevos.
+ * Se eligió flash-lite y no un flash grande a propósito: los modelos de
+ * razonamiento gastan parte del presupuesto de salida en pensar, y con un
+ * `maxOutputTokens` bajo devuelven la frase cortada a la mitad — "Marisol
+ * tiene 7 pel". Para escribir dos oraciones, el lite es más fiable y más
+ * rápido, que es justo lo que necesita una vitrina.
+ */
+const MODELO = 'gemini-3.1-flash-lite';
 const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
 
 // Producto para menores: filtros al máximo razonable.

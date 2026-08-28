@@ -23,7 +23,7 @@ export const modoSTT =
 
 export const infoBackend = esLocal
   ? { nombre: 'Gemma 3 1B', modo: 'offline', detalle: 'Corriendo local vía Ollama. Sin internet.' }
-  : { nombre: 'Gemini 1.5 Flash', modo: 'online', detalle: 'Vitrina web. La versión real usa IA local.' };
+  : { nombre: 'Gemini 3.1 Flash Lite', modo: 'online', detalle: 'Vitrina web. La versión real usa IA local.' };
 
 export const infoSTT = modoSTT === 'local'
   ? { nombre: 'Whisper tiny', modo: 'offline', detalle: 'Transcripción local, sin internet.' }

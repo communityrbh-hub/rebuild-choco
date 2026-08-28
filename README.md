@@ -98,7 +98,7 @@ El backend se elige por `hostname`. El código de las pantallas es idéntico.
 
 | Capacidad | 🔌 Offline (el producto real) | 🌐 Online (vitrina para el jurado) |
 |---|---|---|
-| 🧠 Cerebro | **Gemma 3 1B** vía Ollama | **Gemini 1.5 Flash** |
+| 🧠 Cerebro | **Gemma 3 1B** vía Ollama | **Gemini 3.1 Flash Lite** |
 | 👂 Oído | **Whisper-tiny** local (WASM) | **Web Speech API** |
 | 🗣️ Voz | `speechSynthesis`, voz local del SO | `speechSynthesis` |
 | 💾 Datos | `localStorage` — nada sale del equipo | `localStorage` |
@@ -210,7 +210,7 @@ Solo números verificados: **123** (emergencias nacional) y **141** (ICBF, prote
 | Tecnología | Para qué | Por qué esa y no otra |
 |---|---|---|
 | **Gemma 3 1B** | Cerebro offline | Pesos abiertos, 815 MB, corre en CPU sin GPU. Es el modelo que la documentación de Google recomienda para inferencia on-device |
-| **Gemini 1.5 Flash** | Cerebro de la vitrina online | Latencia baja y filtros de seguridad configurables, necesarios en un producto para menores |
+| **Gemini 3.1 Flash Lite** | Cerebro de la vitrina online | Latencia baja y filtros de seguridad configurables. Lite y no un flash grande a propósito: los modelos de razonamiento gastan parte del presupuesto de salida en pensar y devuelven la frase cortada |
 | **Firebase Hosting** | Vitrina web | Despliegue estático inmediato para que el jurado explore sin instalar nada |
 | **Google AI Edge / LiteRT** | Camino a producción | Vía oficial para llevar Gemma a Android on-device, sin reescribir el producto |
 
@@ -234,6 +234,12 @@ src/packs/choco-sismo-2026.json
 Llevar REBUILD a otro municipio, otro país o **otro tipo de desastre** (inundación, deslizamiento, conflicto) es clonar y editar ese archivo. El motor no cambia.
 
 ---
+
+## 🌐 Vitrina en línea
+
+**https://rebuild-choco-2026-b5c14.web.app**
+
+Desplegada en Firebase Hosting para que cualquiera explore la interfaz sin instalar nada. Lleva un banner permanente porque **no es evidencia de la capacidad offline**: ahí el cerebro es Gemini, no Gemma corriendo en el dispositivo. Para ver el producto real hay que correrlo local, o mirar el video demo.
 
 ## 🚀 Cómo correrlo
 
@@ -332,4 +338,4 @@ scripts/
 
 ## Créditos y uso de herramientas
 
-Construido durante el hackathon GoFest 26. Desarrollo asistido con Claude Code (Anthropic), declarado según las reglas del evento. Modelos: Gemma 3 (Google, pesos abiertos), Gemini 1.5 Flash (Google), Whisper tiny (OpenAI, vía transformers.js). Iconos: lucide-react. Sin frameworks de UI: CSS puro.
+Construido durante el hackathon GoFest 26. Desarrollo asistido con Claude Code (Anthropic), declarado según las reglas del evento. Modelos: Gemma 3 (Google, pesos abiertos), Gemini 3.1 Flash Lite (Google), Whisper tiny (OpenAI, vía transformers.js). Iconos: lucide-react. Sin frameworks de UI: CSS puro.

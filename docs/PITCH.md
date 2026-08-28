@@ -127,7 +127,7 @@ npm test
 
 | | Offline (el producto real) | Online (vitrina) |
 |---|---|---|
-| 🧠 Cerebro | **Gemma 3 1B** · Ollama | **Gemini 1.5 Flash** |
+| 🧠 Cerebro | **Gemma 3 1B** · Ollama | **Gemini 3.1 Flash Lite** |
 | 👂 Oído | Whisper local | Web Speech API |
 | 🗣️ Voz | Voz local del sistema | Voz local del sistema |
 
