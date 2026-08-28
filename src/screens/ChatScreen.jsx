@@ -38,7 +38,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Mic, MicOff, Sparkles, Keyboard, X } from 'lucide-react';
+import { ArrowLeft, Send, Mic, MicOff, Sparkles, X } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
 import ChatBubble from '../components/ChatBubble';
 import EmergencyButton from '../components/EmergencyButton';
@@ -52,10 +52,20 @@ import {
 } from '../services/stt';
 
 /** Siempre disponibles, sin importar de qué se esté hablando. */
+/*
+ * Atajos que valen en cualquier momento de la conversación, también cuando
+ * está improvisando. Sin ellos, "hagamos cuentas" solo funcionaba si el nodo
+ * del guion casualmente ofrecía matemáticas, y el niño acababa teniendo que
+ * buscar la frase exacta: un menú invisible, que es peor que un menú.
+ */
 const ATAJOS = [
-  { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos',       next: 'respiracion' },
-  { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento',    next: 'cuento' },
-  { id: 'math',     emoji: '🔢', label: 'Practicar matemáticas', action: 'go_to_math' },
+  { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos',       next: 'respiracion',
+    keywords: ['respirar', 'respiracion', 'calmarme', 'calma'] },
+  { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento',    next: 'cuento',
+    keywords: ['cuento', 'historia', 'cuentame algo'] },
+  { id: 'math',     emoji: '🔢', label: 'Practicar matemáticas', action: 'go_to_math',
+    keywords: ['matematicas', 'cuentas', 'numeros', 'sumar', 'sumas', 'restar', 'restas',
+               'multiplicar', 'tablas', 'ejercicios', 'aprender', 'estudiar'] },
 ];
 
 /*
@@ -651,14 +661,17 @@ export default function ChatScreen() {
 
           {/* Solo si lleva un rato callado: qué le puede decir a Rumi */}
           {sugerir && (
+            /* Se muestran, no se tocan. Un chip que se puede pulsar convierte
+               la conversación en un menú: el niño deja de hablar y empieza a
+               escoger. Aquí son un ejemplo de qué DECIR, y nada más. */
             <div className="sugerencias-voz">
               <span className="sec">Puedes decirle:</span>
               <div className="chips">
                 {opciones.slice(0, 3).map((op) => (
-                  <button key={op.id} className="chip" onClick={() => elegir(op)}>
+                  <span key={op.id} className="chip chip-dicho">
                     {op.emoji && <span>{op.emoji}</span>}
-                    <span>{op.label}</span>
-                  </button>
+                    <span>“{op.label}”</span>
+                  </span>
                 ))}
               </div>
             </div>
@@ -700,19 +713,17 @@ export default function ChatScreen() {
         {/* --- Barra inferior: tres cosas, ninguna necesaria para conversar --- */}
         <div className="escena-abajo">
           {pie}
-          <div className="fila" style={{ justifyContent: 'center', gap: 14 }}>
-            <button className="btn-redondo" onClick={alternarVoz} aria-label="Apagar micrófono" title="Apagar micrófono">
-              <Mic size={20} />
-            </button>
+          {/* Un único control en toda la conversación, y es para irse. Apagar
+              el micrófono o cambiar a teclado eran decisiones de interfaz que
+              el niño no tiene por qué tomar: si el oído falla, la app se pasa
+              sola al respaldo escrito. */}
+          <div className="fila" style={{ justifyContent: 'center' }}>
             <button className="btn-redondo btn-redondo-salir" onClick={salir} aria-label="Terminar" title="Terminar">
               <X size={22} />
             </button>
-            <button className="btn-redondo" onClick={() => { setVista('botones'); setMostrarTeclado(true); }} aria-label="Escribir" title="Prefiero escribir">
-              <Keyboard size={19} />
-            </button>
           </div>
           <p className="sec centro" style={{ fontSize: 11.5, marginTop: 8, marginBottom: 0 }}>
-            Háblale cuando quieras. Puedes interrumpirlo.
+            Háblale cuando quieras — también para hacer cuentas. Puedes interrumpirlo.
           </p>
         </div>
 

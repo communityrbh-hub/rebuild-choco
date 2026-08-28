@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Mic, Users, MapPin, Volume2, WifiOff } from 'lucide-react';
+import { Mic, MapPin, WifiOff } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
 import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 import { hablar, callar } from '../services/tts';
@@ -32,8 +32,15 @@ export default function ActivationScreen() {
 
   useEffect(() => () => callar(), []);
 
-  const decirSaludo = () =>
+  /*
+   * Un solo gesto hace tres cosas a la vez: desbloquea el audio del
+   * navegador, suena el saludo, y entra a la conversación. El saludo sigue
+   * sonando mientras la pantalla de chat monta, así no hay silencio muerto.
+   */
+  function entrar() {
     hablar(SALUDO, { onStart: () => setHablando(true), onEnd: () => setHablando(false) });
+    navigate('/chat');
+  }
 
 
 
@@ -65,16 +72,6 @@ export default function ActivationScreen() {
       >
         {SALUDO}
       </p>
-
-      <div className="centro" style={{ marginBottom: 18 }}>
-        <button
-          onClick={decirSaludo}
-          className="fila"
-          style={{ background: 'var(--superficie)', border: '1px solid var(--borde)', borderRadius: 999, cursor: 'pointer', color: 'var(--primario-osc)', fontWeight: 640, fontSize: 13.5, fontFamily: 'inherit', padding: '8px 16px', margin: '0 auto', boxShadow: 'var(--sombra-sm)' }}
-        >
-          <Volume2 size={15} /> Escuchar a Rumi
-        </button>
-      </div>
 
       {/* --- Contexto territorial: la tesis del producto --- */}
       <div className="tarjeta" style={{ padding: 0, overflow: 'hidden' }}>
@@ -115,21 +112,33 @@ export default function ActivationScreen() {
 
       <div className="espaciador" style={{ minHeight: 10 }} />
 
-      {/* --- Las tres puertas --- */}
-      {/* Hablar es la puerta principal: el producto es una conversación, no
-          un menú. Va primero y con el peso visual del botón primario. */}
-      <button className="btn btn-primario" onClick={() => navigate('/chat')}>
-        <Mic size={21} /> Hablar con Rumi
+      {/* --- Una sola puerta ---
+          Aquí no se escoge nada. El único toque que existe en toda la app
+          está aquí, y no es una decisión: es el gesto que el navegador exige
+          para poder abrir el micrófono y sonar. A partir de él, todo lo que
+          el niño quiera hacer lo pide hablando. */}
+      <button className="btn btn-primario" onClick={entrar}>
+        <Mic size={21} /> Toca y háblale a Rumi
       </button>
-      <button className="btn btn-suave" onClick={() => navigate('/math')}>
-        <GraduationCap size={21} /> Quiero aprender
-      </button>
-      <button className="btn btn-suave" onClick={() => navigate('/padre')}>
-        <Users size={21} /> Soy docente o cuidador
-      </button>
+      <p className="sec centro" style={{ fontSize: 12.5, marginTop: 8, marginBottom: 0 }}>
+        Después de esto no hay botones: dile en voz alta lo que quieras —
+        contarle algo, hacer cuentas, o preguntarle qué pasó.
+      </p>
 
       <p className="sec centro" style={{ fontSize: 11.5, marginTop: 12, marginBottom: 0 }}>
         REBUILD · pack territorial <code>{pack.id}</code>
+        {' · '}
+        {/* No es una puerta del niño: es para el adulto que acompaña, y por eso
+            es texto al pie y no una tercera opción a la misma altura. */}
+        <span
+          role="link"
+          tabIndex={0}
+          onClick={() => navigate('/padre')}
+          onKeyDown={(e) => e.key === 'Enter' && navigate('/padre')}
+          style={{ textDecoration: 'underline', cursor: 'pointer' }}
+        >
+          soy docente o cuidador
+        </span>
       </p>
     </div>
   );

@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, RotateCcw, Volume2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Mic } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
 import {
   generarEjercicio,
@@ -24,9 +24,73 @@ import {
   infoBackend,
 } from '../services/aiService';
 import { hablar, callar } from '../services/tts';
+import { crearSesionEscucha, sttDisponible, pareceEco } from '../services/stt';
 
 const TOTAL = 3;
 const TEMAS = ['suma', 'resta', 'multiplicacion'];
+
+/*
+ * El niño dice el número, no lo teclea. Whisper y la Web Speech API
+ * devuelven a veces dígitos ("32") y a veces palabras ("treinta y dos"),
+ * según el motor y la frase; hay que entender las dos formas o la mitad de
+ * las respuestas correctas se contarían como falladas.
+ */
+const UNIDADES = {
+  cero: 0, uno: 1, una: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6,
+  siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13,
+  catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18,
+  diecinueve: 19, veinte: 20, veintiuno: 21, veintidos: 22, veintitres: 23,
+  veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27,
+  veintiocho: 28, veintinueve: 29,
+};
+const DECENAS = {
+  treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70,
+  ochenta: 80, noventa: 90, cien: 100, ciento: 100,
+};
+
+function limpiar(t) {
+  return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Devuelve el número que dijo el niño, o null si no dijo ninguno. */
+function numeroDicho(texto) {
+  const t = limpiar(texto);
+  if (!t) return null;
+
+  const digito = t.match(/\d{1,3}/);
+  if (digito) return Number(digito[0]);
+
+  const palabras = t.split(' ');
+  let total = null;
+  for (let i = 0; i < palabras.length; i++) {
+    const p = palabras[i];
+    if (DECENAS[p] !== undefined) {
+      let valor = DECENAS[p];
+      // "treinta y dos" -> 32
+      if (palabras[i + 1] === 'y' && UNIDADES[palabras[i + 2]] !== undefined) {
+        valor += UNIDADES[palabras[i + 2]];
+        i += 2;
+      }
+      total = valor;
+      break;
+    }
+    if (UNIDADES[p] !== undefined) { total = UNIDADES[p]; break; }
+  }
+  return total;
+}
+
+/** Órdenes que no son un número: repetir, cambiar de actividad, irse. */
+function ordenDicha(texto) {
+  const t = limpiar(texto);
+  if (!t) return null;
+  if (/(repite|repetir|otra vez|no escuche|no entendi|que dijiste)/.test(t)) return 'repetir';
+  if (/(otro|otra|siguiente|siga|sigamos|next)/.test(t)) return 'otro';
+  if (/(leer|lectura|lee|leyendo)/.test(t)) return 'lectura';
+  if (/(cuentas|matematicas|numeros|sumar|restar|multiplicar)/.test(t)) return 'matematicas';
+  if (/(ya no|terminar|termine|adios|chao|salir|volver|listo)/.test(t)) return 'salir';
+  return null;
+}
 
 function lanzarConfeti() {
   const colores = ['#F4A261', '#E76F51', '#4A9D7F', '#FFD166', '#8AB6D6'];
@@ -54,9 +118,56 @@ export default function MathScreen() {
   const [indice, setIndice] = useState(0);
   const [aciertos, setAciertos] = useState(0);
   const [hablandoRumi, setHablandoRumi] = useState(false);
+  const [oido, setOido] = useState('');
+  const [escuchando, setEscuchando] = useState(false);
   const inputRef = useRef(null);
+  const sesionRef = useRef(null);
+  const ecoRef = useRef({ texto: '', ts: 0 });
+  const manejarRef = useRef(null);
+  const hayVoz = sttDisponible();
 
   useEffect(() => () => callar(), []);
+
+  /*
+   * Rumi habla y luego escucha, igual que en el chat. Se dice en voz alta el
+   * enunciado, se abre el micrófono, y lo que el niño responde entra por aquí.
+   * `manejarRef` existe porque la sesión se crea una sola vez (montaje) pero
+   * la función que interpreta la respuesta cambia con cada ejercicio.
+   */
+  useEffect(() => {
+    if (!hayVoz) return undefined;
+    const sesion = crearSesionEscucha({
+      onEstado: (e) => setEscuchando(e === 'escuchando'),
+      onNivel: () => {},
+      onResultado: (t) => {
+        // No confundir su propia voz con la del niño.
+        if (Date.now() - ecoRef.current.ts < 6000 && pareceEco(t, ecoRef.current.texto)) return;
+        manejarRef.current?.(t);
+      },
+      onAviso: () => setEscuchando(false),
+      textoDeRumi: () => ecoRef.current.texto,
+    });
+    sesionRef.current = sesion;
+    sesion.escuchar?.();
+    return () => sesion.cerrar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hayVoz]);
+
+  /** Decir algo y volver a escuchar en cuanto se calle. */
+  function decir(texto, alTerminar) {
+    if (!texto) return;
+    ecoRef.current = { texto, ts: Date.now() };
+    sesionRef.current?.pausar();
+    hablar(texto, {
+      onStart: () => setHablandoRumi(true),
+      onEnd: () => {
+        setHablandoRumi(false);
+        ecoRef.current = { texto, ts: Date.now() };
+        alTerminar?.();
+        sesionRef.current?.escuchar?.();
+      },
+    });
+  }
   // `cargar` se redefine en cada render; incluirla en las dependencias
   // dispararía un bucle infinito de generación. El disparo correcto es
   // exactamente "cambió el modo o avanzamos de ejercicio".
@@ -69,10 +180,13 @@ export default function MathScreen() {
     setRespuesta('');
     setExplicacion('');
 
+    setOido('');
+
     if (modo === 'lectura') {
       const f = await generarFraseLectura(6);
       setFrase(f);
       setCargando(false);
+      decir(`Lee esto en voz alta: ${f.texto}`);
       return;
     }
 
@@ -80,28 +194,66 @@ export default function MathScreen() {
     const ej = await generarEjercicio(tema, 8);
     setEjercicio(ej);
     setCargando(false);
-    hablar(ej.enunciado, { onStart: () => setHablandoRumi(true), onEnd: () => setHablandoRumi(false) });
-    setTimeout(() => inputRef.current?.focus(), 120);
+    decir(ej.enunciado);
   }
 
-  async function comprobar(e) {
+  /*
+   * Lo que el niño dijo mientras hay un ejercicio abierto. Un número es una
+   * respuesta; lo demás son órdenes de conversación. No hay ningún botón que
+   * haga esto: se dice y ya.
+   */
+  function alOir(texto) {
+    const t = (texto || '').trim();
+    if (!t) return;
+    setOido(t);
+
+    const orden = ordenDicha(t);
+    if (orden === 'salir')       { callar(); sesionRef.current?.cerrar(); navigate('/chat'); return; }
+    if (orden === 'lectura')     { callar(); setIndice(0); setAciertos(0); setModo('lectura'); return; }
+    if (orden === 'matematicas' && modo === 'lectura') { callar(); setIndice(0); setModo('matematicas'); return; }
+    if (orden === 'repetir')     { decir(modo === 'lectura' ? frase?.texto : ejercicio?.enunciado); return; }
+    if (orden === 'otro')        { if (estado === 'correcto') siguiente(); else cargar(); return; }
+
+    if (modo === 'lectura') { decir('Muy bien leído. Vamos con otra.', null); setTimeout(cargar, 900); return; }
+
+    const numero = numeroDicho(t);
+    if (numero === null) {
+      decir('No te entendí el número. Dímelo otra vez, despacito.');
+      return;
+    }
+    comprobar(null, String(numero));
+  }
+  manejarRef.current = alOir;
+
+  async function comprobar(e, dicho) {
     e?.preventDefault();
-    if (!respuesta.trim() || !ejercicio) return;
+    const valor = dicho ?? respuesta;
+    if (!String(valor).trim() || !ejercicio || estado === 'correcto') return;
+    setRespuesta(String(valor));
 
     // ⚠️ La verificación es código. El modelo no opina sobre si está bien o mal.
-    if (verificar(ejercicio, respuesta)) {
+    if (verificar(ejercicio, valor)) {
       setEstado('correcto');
       setAciertos((a) => a + 1);
       lanzarConfeti();
       guardarProgreso(true);
-      hablar('¡Muy bien! Lo lograste.', { onStart: () => setHablandoRumi(true), onEnd: () => setHablandoRumi(false) });
+      // Avanza sola: pedirle al niño que toque "siguiente" rompe la conversación.
+      decir(
+        indice + 1 >= TOTAL
+          ? `¡Muy bien! Lo lograste. Terminaste los tres. ¿Quieres otra ronda?`
+          : '¡Muy bien! Lo lograste. Va la siguiente.',
+        () => { if (indice + 1 < TOTAL) setTimeout(siguiente, 300); },
+      );
     } else {
       setEstado('incorrecto');
       guardarProgreso(false);
       setExplicacion('');
-      const { texto } = await explicarError(ejercicio, respuesta);
+      const { texto } = await explicarError(ejercicio, valor);
       setExplicacion(texto);
-      hablar(texto, { onStart: () => setHablandoRumi(true), onEnd: () => setHablandoRumi(false) });
+      // Método socrático: hace UNA pregunta y deja el micrófono abierto para
+      // que el niño conteste. El estado sigue en 'incorrecto' para que se vea
+      // la pregunta, pero se admite otro intento sin tocar nada.
+      decir(texto);
     }
   }
 
@@ -124,7 +276,7 @@ export default function MathScreen() {
   return (
     <div className="pantalla">
       <div className="fila mb-16">
-        <button className="link-volver" onClick={() => { callar(); navigate('/'); }}>
+        <button className="link-volver" onClick={() => { callar(); sesionRef.current?.cerrar(); navigate('/chat'); }}>
           <ArrowLeft size={18} /> Volver
         </button>
         <div className="espaciador" />
@@ -141,26 +293,8 @@ export default function MathScreen() {
         </div>
       )}
 
-      {/* Selector de actividad — no es una pantalla nueva, es un modo */}
-      <div className="fila mb-16" style={{ gap: 8 }}>
-        {[['matematicas', '🔢 Matemáticas'], ['lectura', '📖 Lectura']].map(([id, etiqueta]) => (
-          <button
-            key={id}
-            onClick={() => { callar(); setIndice(0); setAciertos(0); setModo(id); }}
-            style={{
-              flex: 1, height: 44, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 14, fontWeight: 640,
-              transition: 'all .15s ease',
-              border: modo === id ? '2px solid var(--primario)' : '2px solid var(--borde)',
-              background: modo === id ? 'var(--primario-luz)' : 'var(--superficie)',
-              color: modo === id ? 'var(--primario-osc)' : 'var(--texto-sec)',
-              boxShadow: modo === id ? 'var(--sombra-sm)' : 'none',
-            }}
-          >
-            {etiqueta}
-          </button>
-        ))}
-      </div>
+      {/* Aquí no se escoge actividad con botones: se dice. "quiero leer" o
+          "hagamos cuentas" cambian de modo desde la propia conversación. */}
 
       <div className="centro mb-16">
         <RumiAvatar
@@ -185,30 +319,35 @@ export default function MathScreen() {
               {frase?.texto}
             </p>
           </div>
-          <button
-            className="btn btn-suave"
-            onClick={() => hablar(frase.texto, { onStart: () => setHablandoRumi(true), onEnd: () => setHablandoRumi(false) })}
-          >
-            <Volume2 size={20} /> Escuchar cómo se dice
-          </button>
-          <button className="btn btn-primario" onClick={cargar}>
-            <RotateCcw size={20} /> Otra frase
-          </button>
+          <p className="sec centro" style={{ marginTop: 14 }}>
+            Léela en voz alta. Si quieres oírla, dile <em>“repite”</em>; para otra,
+            <em> “otra”</em>.
+          </p>
         </>
       ) : (
         /* ---------- MODO MATEMÁTICAS ---------- */
         <>
           <div className="tarjeta">
             <p style={{ fontSize: 19.5, lineHeight: 1.55, margin: 0, fontWeight: 540, letterSpacing: '-.2px' }}>{ejercicio?.enunciado}</p>
-            <button
-              onClick={() => hablar(ejercicio.enunciado, { onStart: () => setHablandoRumi(true), onEnd: () => setHablandoRumi(false) })}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primario-osc)', display: 'inline-flex', alignItems: 'center', gap: 6, padding: 0, marginTop: 12, fontFamily: 'inherit', fontSize: 14, fontWeight: 600 }}
-            >
-              <Volume2 size={16} /> Escuchar
-            </button>
+
           </div>
 
-          {estado === 'respondiendo' && (
+          {/* La respuesta se dice. El teclado numérico solo aparece si este
+              navegador no tiene oído: es un respaldo de accesibilidad, no una
+              opción entre dos formas de contestar. */}
+          {hayVoz ? (
+            <div className="centro" style={{ margin: '18px 0 6px' }}>
+              <div className={`escucha-punto ${escuchando ? 'viva' : ''}`}>
+                <Mic size={20} />
+              </div>
+              <p className="sec" style={{ margin: '10px 0 0', fontSize: 13.5 }}>
+                {hablandoRumi ? 'Rumi está hablando…'
+                  : escuchando ? 'Dime el número en voz alta'
+                  : 'Un momento…'}
+              </p>
+              {oido && <p className="subtitulo-nino" style={{ marginTop: 6 }}>“{oido}”</p>}
+            </div>
+          ) : estado === 'respondiendo' && (
             <form onSubmit={comprobar}>
               <input
                 ref={inputRef}
@@ -221,7 +360,7 @@ export default function MathScreen() {
                 style={{ height: 70, fontSize: 30, fontWeight: 750, textAlign: 'center', marginBottom: 12, letterSpacing: '-.5px' }}
               />
               <button type="submit" className="btn btn-primario" disabled={!respuesta.trim()}>
-                <Check size={20} /> Comprobar
+                Comprobar
               </button>
             </form>
           )}
@@ -254,13 +393,14 @@ export default function MathScreen() {
             </div>
           )}
 
-          {estado !== 'respondiendo' && (
+          {/* No hay "siguiente ejercicio": cuando acierta, Rumi lo anuncia y
+              pasa solo. Y si quiere otro antes, lo pide hablando. */}
+          {!hayVoz && estado !== 'respondiendo' && (
             <button className="btn btn-primario" onClick={estado === 'incorrecto' ? cargar : siguiente}>
-              {estado === 'incorrecto'
-                ? <><RotateCcw size={20} /> Intentar otro</>
-                : terminado ? 'Empezar de nuevo' : 'Siguiente ejercicio'}
+              {estado === 'incorrecto' ? 'Intentar otro' : terminado ? 'Empezar de nuevo' : 'Siguiente ejercicio'}
             </button>
           )}
+
         </>
       )}
 
