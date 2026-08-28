@@ -260,27 +260,45 @@ export function verificar(problema, respuestaNino) {
    4. EXPLICACIÓN DEL ERROR — el LLM ya recibe la respuesta correcta
    ============================================================ */
 
+/*
+ * MÉTODO SOCRÁTICO, NO CORRECCIÓN.
+ *
+ * Dar la respuesta correcta enseña muy poco: el niño la copia y sigue sin
+ * saber de dónde salió. La versión anterior de este prompt hacía justo eso,
+ * "explica el paso a paso usando la respuesta correcta".
+ *
+ * Ahora Rumi guía con UNA pregunta que el niño pueda responder solo, con los
+ * dedos o contando en voz alta. La respuesta correcta se le sigue dando al
+ * modelo —la calculó el código, y el modelo nunca calcula, regla #2— pero
+ * como límite: para que la pregunta lleve hacia ella, no para soltarla.
+ */
 function promptExplicacion(p, respuestaNino) {
-  return `Eres un tutor de primaria cálido y alentador, en Colombia.
+  return `Eres un tutor de primaria en Colombia que enseña con preguntas, nunca dando la respuesta.
 
 Un niño resolvió "${p.expresion}" y respondió ${respuestaNino}.
-La respuesta correcta es ${p.resultado}.
+La respuesta correcta es ${p.resultado}, pero NO se la digas.
 
-Escribe una explicación breve y amable:
-- Máximo 3 oraciones, lenguaje muy simple.
-- Empieza reconociendo su esfuerzo, nunca lo regañes.
-- Explica el paso a paso usando la respuesta correcta ${p.resultado}, que ya te di.
-- NO calcules nada por tu cuenta. Usa exactamente ${p.resultado}.
-- Responde SOLO con la explicación.`;
+Escribe así:
+- Primero una frase corta que reconozca su intento, sin regañarlo.
+- Después UNA sola pregunta que lo lleve a descubrirlo él mismo, algo que
+  pueda hacer con los dedos o contando en voz alta.
+- Máximo 2 oraciones. Palabras de niño de 7 años.
+- NUNCA escribas el número ${p.resultado}.
+- NO calcules nada por tu cuenta.
+- Responde SOLO con esas dos frases.`;
 }
 
+/*
+ * El respaldo también pregunta en vez de responder: si el modelo falla, la
+ * pedagogía no puede cambiar con él.
+ */
 export function explicacionRespaldo(p) {
-  const { a, b, tema, resultado } = p;
+  const { a, b, tema } = p;
   if (tema === 'multiplicacion')
-    return `¡Casi! Multiplicar ${a} × ${b} es sumar ${a} veces el número ${b}. Si lo cuentas de a ${b}, llegas a ${resultado}.`;
+    return `¡Buen intento! Multiplicar ${a} × ${b} es sumar ${b} un montón de veces. ¿Cuántas veces tendrías que sumarlo?`;
   if (tema === 'resta')
-    return `¡Buen intento! Si tienes ${a} y quitas ${b}, puedes contar hacia atrás desde ${a}. Vas a llegar a ${resultado}.`;
-  return `¡Casi lo tienes! Empieza en ${a} y cuenta ${b} más, uno por uno. Llegas a ${resultado}.`;
+    return `¡Casi! Imagina que tienes ${a} cositas y regalas ${b}. ¿Cuántas te quedan si las cuentas hacia atrás?`;
+  return `¡Casi lo tienes! Empieza en ${a} y cuenta ${b} más con los dedos. ¿A qué número llegas?`;
 }
 
 export async function explicarError(p, respuestaNino) {

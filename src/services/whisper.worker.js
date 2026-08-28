@@ -80,29 +80,44 @@ env.backends.onnx.wasm.numThreads = typeof SharedArrayBuffer === 'undefined' ? 1
  * son las cuantizadas del decodificador, que valen la mitad de megas.
  */
 
-/** Etapa 1: lo mínimo para que Rumi oiga cuanto antes. */
+/*
+ * SOLO CONFIGURACIONES MEDIDAS EN EL CAMINO POR DEFECTO.
+ *
+ * Una versión intermedia puso las variantes q8 primero por peso, sin haberlas
+ * probado. Si una no pasa la prueba de oído se descarta y se pasa a la
+ * siguiente —el mecanismo funcionó— pero el usuario ve una barra que llega
+ * al 99 %, vuelve a empezar y nunca termina, porque por detrás se están
+ * descargando modelos en cadena. Un respaldo silencioso que tarda cinco
+ * minutos es, para quien espera, exactamente lo mismo que estar roto.
+ *
+ * Estas dos están medidas en esta máquina y funcionan.
+ */
+
+/*
+ * Una sola etapa, y la que ya está en el disco.
+ *
+ * La carga en dos fases tenía sentido con una caché vacía; con el modelo
+ * bueno ya descargado, bajar primero uno peor solo añade minutos de espera
+ * para acabar en el mismo sitio. `base` es el que está medido (3,2 s,
+ * entiende "temblor") y el que el navegador ya tiene guardado.
+ */
 const PRIMERA = {
-  nombre: 'webgpu/tiny-q8',
-  modelo: 'onnx-community/whisper-tiny',
-  opciones: { device: 'webgpu', dtype: { encoder_model: 'q8', decoder_model_merged: 'q8' } },
-  megas: 39,
+  nombre: 'webgpu/base',
+  modelo: 'onnx-community/whisper-base',
+  opciones: { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' } },
+  megas: 196,
 };
 
-/** Etapa 2: la que de verdad entiende español, cuando haya terminado de bajar. */
-const MEJOR = {
-  nombre: 'webgpu/base-q8',
-  modelo: 'onnx-community/whisper-base',
-  opciones: { device: 'webgpu', dtype: { encoder_model: 'q8', decoder_model_merged: 'q8' } },
-  megas: 73,
-};
+/** Sin segunda etapa: la primera ya es la mejor. */
+const MEJOR = PRIMERA;
 
 /** Respaldos, en orden, si la GPU no está o alguna no supera la prueba. */
 const RESPALDOS = [
   {
-    nombre: 'webgpu/base',
-    modelo: 'onnx-community/whisper-base',
+    nombre: 'webgpu/tiny',
+    modelo: 'onnx-community/whisper-tiny',
     opciones: { device: 'webgpu', dtype: { encoder_model: 'fp32', decoder_model_merged: 'q4' } },
-    megas: 196,
+    megas: 113,
   },
   {
     nombre: 'wasm/tiny',
