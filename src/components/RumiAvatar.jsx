@@ -12,7 +12,7 @@
  */
 
 import { useId } from 'react';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
 const { colorCuerpo, colorPanza } = pack.personaje;
 

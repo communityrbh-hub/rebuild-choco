@@ -29,7 +29,7 @@ import * as ollama from './ollama.js';
 import * as gemini from './gemini.js';
 import { esLocal } from './runtime.js';
 import { revisarEntrada, revisarSalida } from '../agent/seguridad.js';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
 const backend = esLocal ? ollama : gemini;
 

@@ -13,7 +13,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, AlertTriangle, MapPin, BookOpen } from 'lucide-react';
 import AISafetyCard from '../components/AISafetyCard';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
 const mockData = {
   nombre: 'Yeison',

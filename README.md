@@ -164,6 +164,19 @@ Un modelo pequeño puede escribir un ejercicio impecable y dar **el resultado eq
 
 Si el modelo falla, tarda o alucina, hay **redacción de respaldo** y validación de formato: la app nunca se queda muda ni muestra un resultado sin verificar.
 
+### Cuánto acierta el modelo, medido
+
+No decimos "funciona bien". Lo medimos, y el número está aquí porque el diseño se sostiene precisamente cuando el modelo falla:
+
+```bash
+npm run probar:mates 9
+#   5/9 redactados por Gemma · 4/9 al respaldo · 4,3 s por ejercicio
+```
+
+Gemma 3 1B produce un enunciado que pasa la validación **algo más de la mitad de las veces**. Las otras, la redacción de respaldo entra sin que el niño note nada: ve un ejercicio con su nombre y su contexto igual. Y en los dos casos **la respuesta correcta la calculó el código**, no el modelo.
+
+> Un modelo de mil millones de parámetros en un CPU sin GPU falla la mitad de las veces. Esa es la realidad del hardware que hay en un aula de San José del Palmar. La pregunta de diseño no es cómo evitarlo: es qué ve el niño cuando pasa.
+
 ### El modelo nunca decide derivar
 
 Que un modelo de 1B **no pueda** activar por su cuenta el protocolo de emergencia no es una limitación que estemos disculpando: es la garantía de seguridad del producto. Un modelo alucina; un `if` no.

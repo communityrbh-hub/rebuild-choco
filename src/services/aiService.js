@@ -27,7 +27,7 @@
 import * as ollama from './ollama.js';
 import * as gemini from './gemini.js';
 import { esLocal, infoBackend } from './runtime.js';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
 export { esLocal, infoBackend };
 

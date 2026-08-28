@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { LifeBuoy, X, Phone } from 'lucide-react';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 
 export default function EmergencyButton({ abiertoInicial = false }) {
   const [abierto, setAbierto] = useState(abiertoInicial);

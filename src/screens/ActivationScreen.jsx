@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GraduationCap, Heart, Users, MapPin, Volume2, WifiOff } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
-import pack from '../packs/choco-sismo-2026.json';
+import pack from '../packs/choco-sismo-2026.json' with { type: 'json' };
 import { hablar, callar } from '../services/tts';
 import { infoBackend } from '../services/runtime';
 
