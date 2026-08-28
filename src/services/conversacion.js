@@ -119,6 +119,10 @@ export async function conversar(mensaje, historial = []) {
   for (let intento = 0; intento < 2 && !texto; intento++) {
     try {
       const bruto = await backend.generar(construirPrompt(mensaje, historial), {
+        // Medido: Gemma se detiene sola tras dos frases, muy por debajo de este
+        // techo, así que bajarlo no acelera nada y sí arriesga cortar una
+        // respuesta a la mitad. El cuello de botella del turno está en el
+        // oído (~5 s), no aquí (~1,5 s).
         maxTokens: 80,
         temperatura: intento === 0 ? 0.75 : 0.55,
         señal: AbortSignal.timeout(20000),
@@ -150,4 +154,18 @@ export async function conversar(mensaje, historial = []) {
 
 export async function backendListo() {
   return backend.disponible();
+}
+
+/**
+ * Deja el modelo caliente en memoria antes de que el niño hable.
+ *
+ * Ollama descarga el modelo de RAM tras un rato de inactividad, y volver a
+ * cargar Gemma cuesta varios segundos. Pagarlos en la primera frase del niño
+ * es justo donde peor sientan. Esto se dispara al abrir el chat y su
+ * resultado se descarta: solo importa el efecto secundario.
+ */
+export async function calentarModelo() {
+  try {
+    await backend.generar('Hola', { maxTokens: 1, temperatura: 0, señal: AbortSignal.timeout(30000) });
+  } catch { /* si no hay backend, ya se verá en el primer turno */ }
 }

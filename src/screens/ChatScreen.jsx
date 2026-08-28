@@ -2,65 +2,58 @@
  * ChatScreen — conversación con Rumi
  * ==================================
  *
- * MODO CONVERSACIÓN (manos libres):
- *   Rumi habla → escucha solo → detecta que el niño terminó → responde →
- *   vuelve a escuchar. El niño no toca nada en todo el ciclo.
+ * MODO CONVERSACIÓN (manos libres, el que importa):
+ *   Rumi habla → el turno pasa al niño → habla cuando quiera → Rumi responde
+ *   → y otra vez. El niño no toca nada en todo el ciclo, y el ciclo **no
+ *   termina nunca** hasta que se sale de la pantalla.
  *
- * DOS FUENTES DE RESPUESTA, y el niño no nota la diferencia:
+ *   Eso último es una corrección, no un detalle de diseño: la versión anterior
+ *   dejaba de escuchar tras dos silencios seguidos y mostraba un aviso. Un
+ *   niño de seis años se queda callado seis segundos sin ningún esfuerzo, así
+ *   que en la práctica la conversación se moría enseguida y solo quedaban los
+ *   botones. Ahora el micrófono sigue abierto y esperando indefinidamente.
  *
- *   📖 GUION FIJO (`dialogTree.js`)
- *      El arranque y los ejercicios con valor terapéutico real: respiración
- *      guiada, cuento, explicación del sismo. Texto escrito por personas,
- *      auditable por un profesional.
+ * LOS BOTONES SON LA RED, NO EL CAMINO.
+ *   En modo voz se muestran pequeños y en una fila: están para el niño que no
+ *   quiere hablar, o para cuando el micrófono no existe. Si ocupan la pantalla
+ *   entera, la app se lee como un menú y nadie intenta hablarle.
  *
- *   🧠 CONVERSACIÓN ABIERTA (`conversacion.js`)
- *      Todo lo demás: su perro, su casa, sus amigos, lo que se le ocurra.
- *      Gemma improvisa, con filtro de seguridad antes y después.
- *
- * ⚠️ LO QUE NUNCA PASA POR EL MODELO
- *   Señales de autolesión, violencia o abuso se detectan con reglas en
- *   `seguridad.js` y disparan derivación humana directa. El modelo ni
- *   siquiera ve ese mensaje. Ver regla #5.
+ * CUATRO VÍAS, y el modelo solo alcanza la cuarta — ver `agent/router.js`.
+ * Lo que dice el niño por voz pasa exactamente por los mismos filtros que lo
+ * que escribe. Hablar no es un canal privilegiado.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Mic, MessageSquare, Volume2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Send, Mic, MicOff, Volume2, Sparkles, Keyboard } from 'lucide-react';
 import RumiAvatar from '../components/RumiAvatar';
 import ChatBubble from '../components/ChatBubble';
 import EmergencyButton from '../components/EmergencyButton';
 import dialogTree from '../data/dialogTree';
 import { resolverIntencion } from '../agent/intents';
 import { enrutar } from '../agent/router';
-import { conversar } from '../services/conversacion';
+import { conversar, calentarModelo } from '../services/conversacion';
 import { hablar, callar } from '../services/tts';
-import { escuchar, sttDisponible, precargarWhisper, modoSTT, MENSAJES } from '../services/stt';
-
-const ESTADOS = {
-  rumi_habla: { etiqueta: 'Rumi está hablando', color: 'var(--primario)' },
-  escuchando: { etiqueta: 'Te escucho…',        color: 'var(--alerta)' },
-  pensando:   { etiqueta: 'Rumi está pensando…', color: 'var(--texto-sec)' },
-  esperando:  { etiqueta: '',                    color: 'var(--texto-sec)' },
-};
+import { crearSesionEscucha, sttDisponible, precargarWhisper, modoSTT, MENSAJES } from '../services/stt';
 
 /** Siempre disponibles, sin importar de qué se esté hablando. */
 const ATAJOS = [
-  { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos',   next: 'respiracion' },
-  { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento', next: 'cuento' },
+  { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos',       next: 'respiracion' },
+  { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento',    next: 'cuento' },
   { id: 'math',     emoji: '🔢', label: 'Practicar matemáticas', action: 'go_to_math' },
 ];
 
 export default function ChatScreen() {
   const navigate = useNavigate();
 
-  // 'guion' = navegando el árbol · 'libre' = conversando con la IA
-  const [modo, setModo] = useState('guion');
+  const [modo, setModo] = useState('guion');       // 'guion' | 'libre'
   const [nodoId, setNodoId] = useState('start');
   const [mensajeRumi, setMensajeRumi] = useState(dialogTree.start.message);
   const [opciones, setOpciones] = useState(dialogTree.start.options);
   const [historial, setHistorial] = useState([]);
-  const [fase, setFase] = useState('esperando');
-  const [conversacionVoz, setConversacionVoz] = useState(true);
+  const [fase, setFase] = useState('esperando');   // rumi_habla | escuchando | pensando | esperando
+  const [vozActiva, setVozActiva] = useState(true);
+  const [mostrarTeclado, setMostrarTeclado] = useState(false);
   const [aviso, setAviso] = useState(null);
   const [parcial, setParcial] = useState('');
   const [nivel, setNivel] = useState(0);
@@ -69,83 +62,107 @@ export default function ChatScreen() {
   const [fuenteUltima, setFuenteUltima] = useState('guion');
   const [texto, setTexto] = useState('');
 
-  const detenerRef = useRef(null);
-  const intentosRef = useRef(0);
-  const convRef = useRef(conversacionVoz);
+  const sesionRef = useRef(null);
+  const vozRef = useRef(true);
   const histRef = useRef([]);
   const opcRef = useRef(opciones);
+  const modoRef = useRef(modo);
+  const nodoRef = useRef(nodoId);
+  const ocupadoRef = useRef(false); // Rumi habla o piensa: lo que llegue se ignora
+  const respaldoRef = useRef(null); // por si el navegador no avisa de que terminó de hablar
   const finRef = useRef(null);
 
-  convRef.current = conversacionVoz;
+  vozRef.current = vozActiva;
   opcRef.current = opciones;
+  modoRef.current = modo;
+  nodoRef.current = nodoId;
 
   const hayVoz = sttDisponible();
 
+  /* ============================================================
+     La sesión de escucha se crea UNA vez y vive toda la pantalla
+     ============================================================ */
   useEffect(() => {
-    if (modoSTT === 'local' && hayVoz) {
-      precargarWhisper((p) => setProgresoModelo(p < 100 ? p : null))
-        .then(() => setProgresoModelo(null))
-        .catch(() => {});
+    if (!hayVoz) return undefined;
+
+    if (modoSTT === 'local') {
+      precargarWhisper((p) => setProgresoModelo(p < 100 ? p : null));
     }
+
+    sesionRef.current = crearSesionEscucha({
+      onNivel: setNivel,
+      onParcial: setParcial,
+      onEstado: (e) => {
+        if (ocupadoRef.current) return;
+        if (e === 'escuchando') setFase('escuchando');
+        else if (e === 'transcribiendo') setFase('pensando');
+      },
+      onResultado: (t) => {
+        // Llegó mientras Rumi hablaba: es eco o impaciencia, no un turno.
+        if (ocupadoRef.current || !vozRef.current) return;
+        setParcial('');
+        procesar(t);
+      },
+      onAviso: (codigo) => {
+        setAviso(MENSAJES[codigo] || MENSAJES.fallo);
+        setVozActiva(false);
+        vozRef.current = false;
+        setMostrarTeclado(true);
+      },
+    });
+
+    return () => sesionRef.current?.cerrar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hayVoz]);
 
-  useEffect(() => () => { callar(); detenerRef.current?.(); }, []);
-  useEffect(() => { finRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [historial, mensajeRumi, fase]);
+  useEffect(() => () => { callar(); clearTimeout(respaldoRef.current); sesionRef.current?.cerrar(); }, []);
+  useEffect(() => { finRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, [mensajeRumi, fase]);
 
-  /* --- Saludo inicial --- */
+  /* --- Saludo inicial. Mientras Rumi saluda, el modelo se va calentando --- */
   useEffect(() => {
+    calentarModelo();
     decir(dialogTree.start.message);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ============================================================
-     Turno del niño
+     Los dos turnos
      ============================================================ */
-  const escucharAlNino = useCallback(() => {
-    if (!hayVoz || !convRef.current) { setFase('esperando'); return; }
 
-    setParcial('');
-    detenerRef.current = escuchar(
-      {
-        onEstado: (e) => {
-          if (e === 'grabando') { setFase('escuchando'); setAviso(null); }
-          else if (e === 'transcribiendo' || e === 'preparando') setFase('pensando');
-        },
-        onNivel: setNivel,
-        onParcial: setParcial,
-        onResultado: (t) => { setParcial(''); procesar(t); },
-        onError: (codigo) => {
-          setParcial('');
-          setFase('esperando');
-          intentosRef.current += 1;
-          if (codigo === 'no_escuche' && intentosRef.current < 2 && convRef.current) {
-            setTimeout(() => { if (convRef.current) escucharAlNino(); }, 500);
-          } else {
-            setAviso(MENSAJES[codigo] || MENSAJES.fallo);
-            intentosRef.current = 0;
-          }
-        },
-      },
-      { auto: true }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  /** Cede el turno al niño. Si no puede escuchar, al menos no miente. */
+  const cederTurno = useCallback(() => {
+    ocupadoRef.current = false;
+    if (vozRef.current && hayVoz && sesionRef.current) {
+      sesionRef.current.escuchar();
+      setFase('escuchando');
+    } else {
+      setFase('esperando');
+    }
   }, [hayVoz]);
 
-  /* ============================================================
-     Turno de Rumi
-     ============================================================ */
+  /** Turno de Rumi: mientras habla, no se le atiende al niño (evita el eco). */
   const decir = useCallback((mensaje) => {
+    ocupadoRef.current = true;
+    sesionRef.current?.pausar();
+    setNivel(0);
     setFase('rumi_habla');
+
     hablar(mensaje, {
-      onEnd: () => {
-        if (convRef.current && hayVoz) {
-          setTimeout(() => { if (convRef.current) escucharAlNino(); }, 420);
-        } else {
-          setFase('esperando');
-        }
-      },
+      // Sin `onEnd` no habría ciclo: cada vez que Rumi calla, el turno vuelve
+      // al niño automáticamente. Es lo único que hace que esto sea una
+      // conversación y no un intercambio de formularios.
+      onEnd: () => setTimeout(cederTurno, 260),
     });
-  }, [escucharAlNino, hayVoz]);
+
+    // Red de seguridad: si el navegador nunca dispara `onEnd` —pasa cuando la
+    // pestaña pierde el foco a mitad de frase— la conversación no se queda
+    // colgada esperando para siempre.
+    clearTimeout(respaldoRef.current);
+    respaldoRef.current = setTimeout(
+      () => { if (ocupadoRef.current) cederTurno(); },
+      2500 + mensaje.length * 90,
+    );
+  }, [cederTurno]);
 
   /** Guarda la señal emocional en el dispositivo, para el panel del docente. */
   function registrarEmocion(id) {
@@ -167,8 +184,6 @@ export default function ChatScreen() {
   function irANodo(id) {
     const n = dialogTree[id];
     if (!n) return;
-    detenerRef.current?.();
-    intentosRef.current = 0;
     setModo('guion');
     setNodoId(id);
     setMensajeRumi(n.message);
@@ -182,21 +197,15 @@ export default function ChatScreen() {
 
   /* ---------- Elegir una opción (botón o intención de voz) ---------- */
   function elegir(opcion, dicho) {
-    detenerRef.current?.();
     setAviso(null);
     setParcial('');
-    intentosRef.current = 0;
     apuntarHistorial('nino', dicho || `${opcion.emoji || ''} ${opcion.label}`.trim());
 
     if (opcion.action === 'go_to_math') { callar(); navigate('/math'); return; }
     if (opcion.action === 'end_chat')   { irANodo('despedida'); return; }
     if (opcion.next) {
-      if (opcion.next === nodoId && modo === 'guion') {
-        // Repetir el mismo nodo (ej. "otra vez"): hay que volver a hablar.
-        decir(dialogTree[opcion.next].message);
-      } else {
-        irANodo(opcion.next);
-      }
+      if (opcion.next === nodoRef.current && modoRef.current === 'guion') decir(dialogTree[opcion.next].message);
+      else irANodo(opcion.next);
     }
   }
 
@@ -216,14 +225,15 @@ export default function ChatScreen() {
     const dicho = (transcripcion || '').trim();
     if (!dicho) return;
 
+    ocupadoRef.current = true;
+    sesionRef.current?.pausar();
+    setAviso(null);
+    setParcial('');
+
     // 1. ¿Encaja con una opción del momento o con un atajo?
-    const candidatas = modo === 'guion' ? [...opcRef.current, ...ATAJOS] : ATAJOS;
+    const candidatas = modoRef.current === 'guion' ? [...opcRef.current, ...ATAJOS] : ATAJOS;
     const hit = resolverIntencion(dicho, candidatas);
     if (hit) { elegir(hit.opcion, dicho); return; }
-
-    detenerRef.current?.();
-    setAviso(null);
-    intentosRef.current = 0;
 
     const ruta = enrutar(dicho);
 
@@ -279,11 +289,12 @@ export default function ChatScreen() {
   }
 
   function alternarVoz() {
-    const nuevo = !conversacionVoz;
-    setConversacionVoz(nuevo);
-    convRef.current = nuevo;
-    if (!nuevo) { detenerRef.current?.(); setFase('esperando'); setParcial(''); }
-    else if (fase === 'esperando') escucharAlNino();
+    const nuevo = !vozActiva;
+    setVozActiva(nuevo);
+    vozRef.current = nuevo;
+    setAviso(null);
+    if (nuevo) { setMostrarTeclado(false); if (!ocupadoRef.current) cederTurno(); }
+    else { sesionRef.current?.pausar(); setNivel(0); setParcial(''); setFase('esperando'); setMostrarTeclado(true); }
   }
 
   const nodoActual = dialogTree[nodoId];
@@ -294,60 +305,56 @@ export default function ChatScreen() {
     : modo === 'guion' && nodoActual?.mood === 'worried' ? 'preocupado'
     : 'idle';
 
-  const info = ESTADOS[fase];
+  const enVoz = vozActiva && hayVoz;
 
   return (
-    <div className="pantalla" style={{ paddingBottom: 120 }}>
-      <div className="fila" style={{ marginBottom: 4 }}>
-        <button className="link-volver" onClick={() => { callar(); detenerRef.current?.(); navigate('/'); }}>
+    <div className="pantalla" style={{ paddingBottom: 110 }}>
+      <div className="fila" style={{ marginBottom: 2 }}>
+        <button className="link-volver" onClick={() => { callar(); sesionRef.current?.cerrar(); navigate('/'); }}>
           <ArrowLeft size={18} /> Volver
         </button>
         <div className="espaciador" />
         {hayVoz && (
-          <button
-            onClick={alternarVoz}
-            className="fila"
-            style={{
-              gap: 6, borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 12.5, fontWeight: 640, padding: '7px 13px',
-              border: conversacionVoz ? '1.5px solid var(--primario)' : '1.5px solid var(--borde)',
-              background: conversacionVoz ? 'var(--primario-luz)' : 'var(--superficie)',
-              color: conversacionVoz ? 'var(--primario-osc)' : 'var(--texto-sec)',
-              transition: 'all .15s ease',
-            }}
-          >
-            {conversacionVoz ? <Mic size={13} /> : <MessageSquare size={13} />}
-            {conversacionVoz ? 'Hablando' : 'Botones'}
+          <button onClick={alternarVoz} className={`pastilla-voz ${enVoz ? 'activa' : ''}`}>
+            {enVoz ? <Mic size={13} /> : <MicOff size={13} />}
+            {enVoz ? 'Micrófono encendido' : 'Micrófono apagado'}
           </button>
         )}
       </div>
 
       <div className="centro" style={{ marginBottom: 2 }}>
-        <RumiAvatar estado={estadoRumi} tamano={140} />
+        <RumiAvatar estado={estadoRumi} tamano={132} />
       </div>
 
-      {/* Indicador de turno */}
-      <div className="centro" style={{ height: 34, marginBottom: 8 }}>
-        {fase === 'escuchando' ? (
-          <div className="fila" style={{ justifyContent: 'center', gap: 4, height: 34 }}>
+      {/* ---- El turno, siempre visible: es lo que hace legible la conversación ---- */}
+      <div className="centro turno">
+        {fase === 'escuchando' && (
+          <div className="fila turno-escuchando">
             {[0, 1, 2, 3, 4].map((i) => (
               <span
                 key={i}
                 className="barra-nivel"
-                style={{ height: `${8 + Math.min(26, nivel * 32 * (i === 2 ? 1.5 : i === 1 || i === 3 ? 1.15 : 0.75))}px` }}
+                style={{ height: `${9 + Math.min(30, nivel * 34 * (i === 2 ? 1.5 : i === 1 || i === 3 ? 1.15 : 0.75))}px` }}
               />
             ))}
-            <span style={{ marginLeft: 10, fontSize: 13.5, fontWeight: 640, color: 'var(--alerta)' }}>
-              Te escucho…
-            </span>
+            <span className="turno-texto" style={{ color: 'var(--alerta)' }}>Te escucho…</span>
           </div>
-        ) : info.etiqueta ? (
-          <div className="fila" style={{ justifyContent: 'center', gap: 7, height: 34 }}>
-            {fase === 'rumi_habla' && <Volume2 size={15} color={info.color} />}
-            {fase === 'pensando' && <span className="cargando" style={{ width: 14, height: 14 }} />}
-            <span style={{ fontSize: 13.5, fontWeight: 620, color: info.color }}>{info.etiqueta}</span>
+        )}
+        {fase === 'rumi_habla' && (
+          <div className="fila turno-escuchando">
+            <Volume2 size={15} color="var(--primario)" />
+            <span className="turno-texto" style={{ color: 'var(--primario)' }}>Rumi está hablando</span>
           </div>
-        ) : null}
+        )}
+        {fase === 'pensando' && (
+          <div className="fila turno-escuchando">
+            <span className="cargando" style={{ width: 14, height: 14 }} />
+            <span className="turno-texto" style={{ color: 'var(--texto-sec)' }}>Rumi está pensando…</span>
+          </div>
+        )}
+        {fase === 'esperando' && !enVoz && (
+          <span className="turno-texto" style={{ color: 'var(--texto-sec)' }}>Toca una opción o escríbele</span>
+        )}
       </div>
 
       {historial.slice(-3, -1).map((m, i) => (
@@ -359,7 +366,7 @@ export default function ChatScreen() {
       {parcial && <ChatBubble texto={parcial} de="nino" historial />}
 
       {mostrarAyuda && (
-        <div className="tarjeta" style={{ background: 'var(--alerta-luz)', border: '1.5px solid var(--alerta)', marginBottom: 15 }}>
+        <div className="tarjeta" style={{ background: 'var(--alerta-luz)', border: '1.5px solid var(--alerta)', marginBottom: 14 }}>
           <strong style={{ fontSize: 15 }}>Hablar con una persona ayuda mucho</strong>
           <p className="sec" style={{ marginTop: 6, marginBottom: 0 }}>
             Toca el botón naranja de abajo para ver las líneas de ayuda, o busca a
@@ -369,53 +376,61 @@ export default function ChatScreen() {
       )}
 
       {progresoModelo !== null && (
-        <div className="sec centro" style={{ marginBottom: 12 }}>
+        <div className="sec centro" style={{ marginBottom: 10 }}>
           Preparando el oído de Rumi… {progresoModelo}%
         </div>
       )}
 
-      {aviso && (
-        <div
-          className="sec"
-          style={{ background: 'var(--primario-luz)', border: '1px solid rgba(244,162,97,.4)', borderRadius: 12, padding: '11px 14px', marginBottom: 12, color: 'var(--primario-osc)', fontWeight: 540 }}
-        >
-          {aviso}
+      {aviso && <div className="aviso-suave">{aviso}</div>}
+
+      {/* ---- Las opciones: chips discretos con voz, botones grandes sin ella ---- */}
+      {enVoz ? (
+        <>
+          <p className="sec centro invitacion">Háblale a Rumi cuando quieras</p>
+          <div className="chips">
+            {opciones.map((op) => (
+              <button key={op.id} className="chip" onClick={() => elegir(op)}>
+                {op.emoji && <span>{op.emoji}</span>}
+                <span>{op.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div style={{ marginTop: 4 }}>
+          {opciones.map((op) => (
+            <button key={op.id} className="btn-opcion" onClick={() => elegir(op)}>
+              {op.emoji && <span className="emoji">{op.emoji}</span>}
+              <span>{op.label}</span>
+            </button>
+          ))}
         </div>
       )}
 
-      <div style={{ marginTop: 4 }}>
-        {conversacionVoz && hayVoz && (
-          <p className="sec centro" style={{ fontSize: 12, marginBottom: 10 }}>
-            Cuéntale lo que quieras, o toca una opción
-          </p>
-        )}
-        {opciones.map((op) => (
-          <button key={op.id} className="btn-opcion" onClick={() => elegir(op)}>
-            {op.emoji && <span className="emoji">{op.emoji}</span>}
-            <span>{op.label}</span>
+      {/* El teclado existe para quien ya escribe, pero no se le pone delante a
+          quien todavía no. En modo voz vive detrás de un enlace pequeño. */}
+      {mostrarTeclado || !enVoz ? (
+        <form onSubmit={enviarTexto} className="fila" style={{ marginTop: 12 }}>
+          <input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder="Escríbele a Rumi…"
+            className="entrada"
+            style={{ flex: 1, height: 46 }}
+            autoFocus={mostrarTeclado}
+          />
+          <button type="submit" aria-label="Enviar" className="btn-enviar">
+            <Send size={19} />
           </button>
-        ))}
-      </div>
-
-      <form onSubmit={enviarTexto} className="fila" style={{ marginTop: 12 }}>
-        <input
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          placeholder="O escribe lo que quieras…"
-          className="entrada"
-          style={{ flex: 1, height: 46 }}
-        />
-        <button
-          type="submit"
-          aria-label="Enviar"
-          style={{ width: 46, height: 46, borderRadius: 12, border: 'none', background: 'linear-gradient(150deg,#F8B173,var(--primario))', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: 'var(--sombra-pri)' }}
-        >
-          <Send size={19} />
+        </form>
+      ) : (
+        <button className="enlace-teclado" onClick={() => setMostrarTeclado(true)}>
+          <Keyboard size={13} /> Prefiero escribir
         </button>
-      </form>
+      )}
 
       {/* Transparencia: de dónde salió lo último que dijo Rumi */}
-      <p className="sec centro" style={{ fontSize: 11, marginTop: 12, marginBottom: 0, opacity: .75 }}>
+      <p className="sec centro pie-fuente">
         {fuenteUltima === 'guion'      && '📖 Respuesta de guion escrito por personas'}
         {fuenteUltima === 'ia'         && <><Sparkles size={10} style={{ verticalAlign: -1 }} /> Respuesta generada por Gemma, con filtro de seguridad</>}
         {fuenteUltima === 'seguridad'  && '🛡️ Respuesta de seguridad — derivación a una persona'}

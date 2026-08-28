@@ -438,3 +438,137 @@ code { font-size: .88em; background: var(--fondo-alt); padding: 1px 5px; border-
   background: var(--alerta);
   transition: height .09s ease-out;
 }
+
+/* ============================================================
+   Conversación por voz — la jerarquía visual es el mensaje
+   ============================================================
+
+   Con el micrófono encendido, los botones bajan a chips en una fila y el
+   teclado se esconde detrás de un enlace. No es cosmética: cuando las
+   opciones ocupaban la pantalla entera, nadie intentaba hablarle a Rumi
+   porque la app se leía como un menú.
+   ============================================================ */
+
+/* El turno: alto fijo para que la conversación no salte al cambiar de estado */
+.turno {
+  height: 36px;
+  margin-bottom: 8px;
+}
+
+.turno-escuchando {
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+}
+
+.turno-texto {
+  margin-left: 8px;
+  font-size: 13.5px;
+  font-weight: 640;
+}
+
+.invitacion {
+  font-size: 12.5px;
+  margin: 14px 0 9px;
+}
+
+/* Chips: presentes, pero sin competir con la voz */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--borde);
+  background: var(--superficie);
+  color: var(--texto);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .12s ease;
+}
+
+.chip:hover  { border-color: var(--primario); }
+.chip:active { transform: scale(.96); }
+
+/* Interruptor del micrófono: el estado tiene que leerse de un vistazo */
+.pastilla-voz {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 640;
+  cursor: pointer;
+  border: 1.5px solid var(--borde);
+  background: var(--superficie);
+  color: var(--texto-sec);
+  transition: all .15s ease;
+}
+
+.pastilla-voz.activa {
+  border-color: var(--primario);
+  background: var(--primario-luz);
+  color: var(--primario-osc);
+}
+
+.enlace-teclado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  border: none;
+  background: none;
+  color: var(--texto-sec);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.enlace-teclado:hover { color: var(--primario-osc); }
+
+.btn-enviar {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(150deg, #F8B173, var(--primario));
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--sombra-pri);
+}
+
+.aviso-suave {
+  background: var(--primario-luz);
+  border: 1px solid rgba(244, 162, 97, .4);
+  border-radius: 12px;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+  color: var(--primario-osc);
+  font-size: 13.5px;
+  font-weight: 540;
+}
+
+.pie-fuente {
+  font-size: 11px;
+  margin: 12px 0 0;
+  opacity: .75;
+}
