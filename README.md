@@ -169,13 +169,15 @@ Si el modelo falla, tarda o alucina, hay **redacción de respaldo** y validació
 No decimos "funciona bien". Lo medimos, y el número está aquí porque el diseño se sostiene precisamente cuando el modelo falla:
 
 ```bash
-npm run probar:mates 9
-#   5/9 redactados por Gemma · 4/9 al respaldo · 4,3 s por ejercicio
+npm run probar:mates 18
+#   7/18 redactados por Gemma · 11/18 al respaldo · 4,3 s por ejercicio
 ```
 
-Gemma 3 1B produce un enunciado que pasa la validación **algo más de la mitad de las veces**. Las otras, la redacción de respaldo entra sin que el niño note nada: ve un ejercicio con su nombre y su contexto igual. Y en los dos casos **la respuesta correcta la calculó el código**, no el modelo.
+Gemma 3 1B produce un enunciado que pasa todas las validaciones **cuatro de cada diez veces**. Las otras seis, la redacción de respaldo entra sin que el niño note nada: ve un ejercicio con un nombre y un contexto de su región igual. Y en los dos casos **la respuesta correcta la calculó el código**, no el modelo.
 
-> Un modelo de mil millones de parámetros en un CPU sin GPU falla la mitad de las veces. Esa es la realidad del hardware que hay en un aula de San José del Palmar. La pregunta de diseño no es cómo evitarlo: es qué ve el niño cuando pasa.
+**Por qué el número es bajo a propósito.** La validación más estricta es la que compara el enunciado con la operación. Nació de un fallo real: para `28 + 9`, el modelo escribió *"Marisol tiene 28 flores y le regalan 9 a su abuela. ¿Cuántas flores le queda?"*. Los dos números están, el resultado no aparece, y describe una resta. Un niño que leyera bien respondería 19 y la app le diría que está mal. Preferimos descartar la mitad de los enunciados del modelo antes que castigar a un niño por un error nuestro.
+
+> Un modelo de mil millones de parámetros en un CPU sin GPU falla más de la mitad de las veces. Esa es la realidad del hardware que hay en un aula de San José del Palmar. La pregunta de diseño no es cómo evitarlo: es qué ve el niño cuando pasa.
 
 ### El modelo nunca decide derivar
 

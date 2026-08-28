@@ -10,16 +10,17 @@ import { ShieldCheck, Check, X } from 'lucide-react';
 import { infoBackend, infoSTT } from '../services/runtime';
 
 const SI = [
+  'Charla de lo cotidiano: su casa, sus animales, su día',
   'Genera ejercicios de matemáticas con contexto local',
   'Explica un error paso a paso',
   'Propone frases cortas de lectura',
 ];
 
 const NO = [
-  'Nunca responde sobre emociones o miedo',
+  'Nunca responde sobre miedo, tristeza o el sismo: eso lo escribieron personas',
+  'Nunca ve un mensaje que suene a crisis: ese va directo a derivación',
   'Nunca calcula: la aritmética la hace el código',
   'Nunca decide cuándo activar una línea de emergencia',
-  'Nunca recibe lo que el niño dice sobre cómo se siente',
 ];
 
 export default function AISafetyCard({ compacta = false }) {
@@ -32,8 +33,11 @@ export default function AISafetyCard({ compacta = false }) {
 
       {!compacta && (
         <p className="sec">
-          La contención emocional está escrita por personas y es revisable por un
-          profesional. Un modelo generativo no interviene ahí.
+          Todo lo que el niño dice pasa antes por un enrutador que no es un modelo:
+          si suena a crisis, o habla de miedo, tristeza, su casa, su familia o el
+          sismo, responde un texto escrito por personas y revisable por un
+          profesional. El modelo solo alcanza la charla cotidiana, y lo que
+          contesta se revisa antes de que el niño lo oiga.
         </p>
       )}
 
