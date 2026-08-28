@@ -11,9 +11,16 @@
  *   🔌 OFFLINE  → Whisper-tiny local (transformers.js sobre WASM) + VAD propio
  *   🌐 ONLINE   → Web Speech API nativa del navegador
  *
- * ⚠️ La transcripción NUNCA llega al modelo generativo cuando se trata de la
- * conversación emocional. Va a `intents.js`, que la resuelve contra las
- * keywords del árbol de diálogo. Ver regla #3.
+ * ⚠️ Hablar no es un canal privilegiado. La transcripción entra por el mismo
+ * enrutador que el texto escrito (`agent/router.js`): primero se intenta
+ * resolver como intención contra las keywords del árbol; si no encaja, pasa
+ * por los filtros de crisis y de tema emocional antes de que el modelo pueda
+ * verla. Ninguna vía se salta la capa de seguridad. Ver regla #3.
+ *
+ * ⚠️ Limitación conocida del modo offline: la inferencia de Whisper corre en
+ * WASM sobre el hilo principal, así que la interfaz se congela un instante
+ * mientras transcribe. Es una limitación del CPU sin GPU, no un defecto de
+ * implementación, y se mitiga con frases cortas de push-to-talk.
  */
 
 import { modoSTT, infoSTT } from './runtime.js';

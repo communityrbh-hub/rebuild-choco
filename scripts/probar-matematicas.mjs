@@ -62,18 +62,38 @@ Problema:`,
   }).then((r) => r.json());
 
   const bruto = (res.response || '').trim();
-  const lineas = bruto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const lineas = bruto.split(/\r?\n/).map((l) => l.replace(/[*_`#]/g, '').trim()).filter(Boolean)
     .filter((l) => !/^(problema|operaci[oó]n|tipo|personaje|contexto|ejemplo|ahora)\s*:?\s*$/i.test(l))
-    .map((l) => l.replace(/^(problema|contexto)\s*:\s*/i, '').trim())
+    .map((l) => l.replace(/^(problema|contexto|enunciado)\s*:\s*/i, '').trim())
     .filter((l) => !/^(operaci[oó]n|tipo|personaje)\s*:/i.test(l));
   const limpio = (lineas.find((l) => l.includes('?') && l.length > 25) || lineas[0] || '')
     .replace(/^["'¡\s]+|["'\s]+$/g, '').trim();
 
-  const valido =
+  // Mismas reglas que `aiService.narrativaValida`, incluida la coherencia
+  // entre el verbo del enunciado y la operación que calculó el código.
+  const sinTildes = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const QUITAR = ['queda', 'quedan', 'quedaron', 'quedo', 'sobran', 'sobra', 'perdio', 'perdieron',
+    'se le cayeron', 'se le cayo', 'regalo', 'regalaron', 'comio', 'comieron', 'vendio', 'quito',
+    'se fueron', 'se escaparon', 'presto'];
+  const AGREGAR = ['mas', 'le dan', 'le da', 'le regalan', 'le regala', 'recibe', 'recibio',
+    'encuentra', 'encontro', 'consigue', 'gana', 'junta', 'agrega'];
+  const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral'];
+  const tt = sinTildes(limpio || '');
+  const quita = QUITAR.some((m) => tt.includes(m));
+  const agrega = AGREGAR.some((m) => tt.includes(m));
+  const agrupa = AGRUPAR.some((m) => tt.includes(m));
+  const coherente =
+    p.tema === 'suma' ? agrega && !quita
+    : p.tema === 'resta' ? quita
+    : agrupa && !quita;
+
+  const valido = Boolean(
     limpio && limpio.length >= 15 && limpio.length <= 320 &&
     limpio.includes(String(p.a)) && limpio.includes(String(p.b)) &&
     !new RegExp(`\b${p.resultado}\b`).test(limpio) &&
-    !/\[|\]|respuesta\s*:/i.test(limpio);
+    !/\[|\]|respuesta\s*:/i.test(limpio) &&
+    coherente,
+  );
 
   if (valido) ia++; else respaldo++;
   console.log(`${valido ? '✅ ia      ' : '↩️  respaldo'}  ${p.expresion} = ${p.resultado}`);

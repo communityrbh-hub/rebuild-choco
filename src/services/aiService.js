@@ -127,11 +127,14 @@ const EJEMPLOS = {
 function limpiarNarrativa(texto) {
   const lineas = texto
     .split(/\r?\n/)
-    .map((l) => l.trim())
+    // Gemma responde en markdown más a menudo de lo que se le pide: quitamos
+    // negritas, viñetas y encabezados antes de mirar el contenido, porque si
+    // no, "**Problema:** Sofía tiene..." se cuela entero hasta el niño.
+    .map((l) => l.replace(/[*_`#]/g, '').trim())
     .filter(Boolean)
     // Descarta ecos del andamiaje del prompt.
     .filter((l) => !/^(problema|operaci[oó]n|tipo|personaje|contexto|ejemplo|ahora)\s*:?\s*$/i.test(l))
-    .map((l) => l.replace(/^(problema|contexto)\s*:\s*/i, '').trim())
+    .map((l) => l.replace(/^(problema|contexto|enunciado)\s*:\s*/i, '').trim())
     .filter((l) => !/^(operaci[oó]n|tipo|personaje)\s*:/i.test(l));
 
   // Nos quedamos con la primera línea que parezca un problema de verdad.
@@ -153,6 +156,34 @@ export function narrativaRespaldo(p) {
  * Valida la narrativa del modelo antes de mostrársela a un niño.
  * Un output que no pasa se descarta y se usa el respaldo.
  */
+/** Quita tildes para comparar el enunciado sin depender de la ortografía del modelo. */
+const sinTildes = (t) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/*
+ * Marcadores de qué operación describe el enunciado, en palabras.
+ *
+ * Existen por un fallo real observado en la app: para la operación 28 + 9,
+ * Gemma escribió "Marisol tiene 28 flores y le regalan 9 a su abuela.
+ * ¿Cuántas flores le queda?". Pasaba todas las validaciones anteriores —los
+ * dos números están, el resultado no aparece— pero describe una resta. El
+ * niño leía bien, respondía 19, y la app le decía que estaba mal. Ese es el
+ * peor fallo posible en un tutor: castigar al niño por un error del modelo.
+ */
+const QUITAR = [
+  'queda', 'quedan', 'quedaron', 'quedo', 'sobran', 'sobra',
+  'perdio', 'perdieron', 'se le cayeron', 'se le cayo', 'regalo', 'regalaron',
+  'comio', 'comieron', 'vendio', 'quito', 'se fueron', 'se escaparon', 'presto',
+];
+const AGREGAR = [
+  'mas', 'le dan', 'le da', 'le regalan', 'le regala', 'recibe', 'recibio',
+  'encuentra', 'encontro', 'consigue', 'gana', 'junta', 'agrega',
+];
+const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral'];
+
+/**
+ * Valida la narrativa del modelo antes de mostrársela a un niño.
+ * Un output que no pasa se descarta y se usa el respaldo.
+ */
 function narrativaValida(texto, p) {
   if (!texto || texto.length < 15 || texto.length > 320) return false;
   if (!texto.includes(String(p.a)) || !texto.includes(String(p.b))) return false;
@@ -160,6 +191,16 @@ function narrativaValida(texto, p) {
   const regexResultado = new RegExp(`\\b${p.resultado}\\b`);
   if (regexResultado.test(texto)) return false;
   if (/\[|\]|respuesta\s*:/i.test(texto)) return false;
+
+  // El enunciado tiene que describir la MISMA operación que calculó el código.
+  const t = sinTildes(texto);
+  const quita = QUITAR.some((m) => t.includes(m));
+  const agrega = AGREGAR.some((m) => t.includes(m));
+  const agrupa = AGRUPAR.some((m) => t.includes(m));
+
+  if (p.tema === 'suma') return agrega && !quita;
+  if (p.tema === 'resta') return quita;
+  if (p.tema === 'multiplicacion') return agrupa && !quita;
   return true;
 }
 
