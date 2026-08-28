@@ -283,25 +283,35 @@ import('./src/services/tts.js').then(m => console.log(m.diagnosticoVoz()))
 src/
 ├── packs/choco-sismo-2026.json   🗺️ territorio parametrizado
 ├── data/dialogTree.js            🛡️ contención — 100% pre-escrito, sin IA
-├── agent/intents.js              👂 voz → intención por palabras clave
+├── agent/
+│   ├── router.js                 🎯 decide QUIÉN responde. Determinista
+│   ├── seguridad.js              🚨 crisis y filtro de salida. Determinista
+│   └── intents.js                👂 voz → intención por palabras clave
 ├── services/
 │   ├── runtime.js                    detección de modo (offline/online)
-│   ├── aiService.js              🧠 ÚNICO punto de entrada al LLM
+│   ├── conversacion.js           🧠 charla cotidiana, vía 4 del enrutador
+│   ├── aiService.js              🧠 ejercicios y explicaciones
 │   ├── ollama.js                     backend offline · Gemma 3
 │   ├── gemini.js                     backend online
 │   ├── stt.js                    👂 Whisper local / Web Speech
+│   ├── vad.js                        detecta cuándo el niño terminó de hablar
 │   └── tts.js                    🗣️ fuerza voz LOCAL del sistema
 ├── components/
 │   ├── RumiAvatar.jsx                SVG + animaciones CSS
-│   ├── MicButton.jsx                 push-to-talk
+│   ├── ChatBubble.jsx                burbuja de mensaje
 │   ├── EmergencyButton.jsx           123 · 141
 │   ├── OnlinePreviewBanner.jsx       aviso de vitrina
 │   └── AISafetyCard.jsx              transparencia de IA
 └── screens/
     ├── ActivationScreen.jsx      /        activación por territorio
-    ├── ChatScreen.jsx            /chat    contención · SIN IA generativa
-    ├── MathScreen.jsx            /math     aprendizaje · ÚNICA con IA
-    └── ParentDashboard.jsx       /padre    supervisión humana
+    ├── ChatScreen.jsx            /chat    contención · enruta las 4 vías
+    ├── MathScreen.jsx            /math    aprendizaje · ejercicios con IA
+    └── ParentDashboard.jsx       /padre   supervisión humana
+
+scripts/
+├── test-seguridad.mjs            ✅ npm test — las 26 aserciones de seguridad
+├── probar-matematicas.mjs        📊 mide la tasa de acierto del modelo
+└── benchmark.mjs                     comparación de modelos locales
 ```
 
 ---
