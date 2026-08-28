@@ -81,6 +81,17 @@ export function crearProblema(tema = 'suma', edad = 8) {
   };
 }
 
+/* ---------- Concordancia, para que el respaldo suene a español ----------
+ * El respaldo lo escribe código, y el código no sabe gramática si no se la
+ * damos. Sin esto sale "Yurany tiene 1 de pelotas en la cancha", que es
+ * exactamente lo que no puede leer un niño que está aprendiendo a leer.
+ */
+const cosas = (ctx, n) => (n === 1 ? ctx.singular : ctx.plural);
+const cuantos = (ctx) => (ctx.genero === 'f' ? 'Cuántas' : 'Cuántos');
+
+/** Cómo se le describe el contexto al modelo en el prompt. */
+const contextoTexto = (ctx) => `${ctx.plural} ${ctx.lugar}`;
+
 /* ============================================================
    2. EL LLM SOLO VISTE EL PROBLEMA DE HISTORIA
    ============================================================ */
@@ -100,7 +111,7 @@ Problema: ${ej.problema}
 AHORA HAZLO TÚ
 Operación: ${p.a} ${p.operador} ${p.b}
 Personaje: ${p.nombre}
-Contexto: ${p.contexto}
+Contexto: ${contextoTexto(p.contexto)}
 Problema:`;
 }
 
@@ -144,12 +155,15 @@ function limpiarNarrativa(texto) {
 
 /** Redacción de respaldo, sin IA. Se usa si el modelo falla o alucina. */
 export function narrativaRespaldo(p) {
-  const { nombre, contexto, a, b, tema } = p;
+  const { nombre, contexto: c, a, b, tema } = p;
+
   if (tema === 'multiplicacion')
-    return `${nombre} tiene ${a} grupos de ${contexto} y en cada grupo hay ${b}. ¿Cuántos hay en total?`;
+    return `${nombre} tiene ${a} ${a === 1 ? c.grupo : c.grupos} y en cada ${c.grupo} hay ${b} ${cosas(c, b)}. ¿${cuantos(c)} ${c.plural} hay en total?`;
+
   if (tema === 'resta')
-    return `${nombre} tenía ${a} de ${contexto} y regaló ${b}. ¿Cuántos le quedaron?`;
-  return `${nombre} tiene ${a} de ${contexto} y le dan ${b} más. ¿Cuántos tiene ahora?`;
+    return `${nombre} tenía ${a} ${cosas(c, a)} ${c.lugar} y regaló ${b}. ¿${cuantos(c)} le quedaron?`;
+
+  return `${nombre} tiene ${a} ${cosas(c, a)} ${c.lugar} y le dan ${b} más. ¿${cuantos(c)} tiene ahora?`;
 }
 
 /**
@@ -178,7 +192,7 @@ const AGREGAR = [
   'mas', 'le dan', 'le da', 'le regalan', 'le regala', 'recibe', 'recibio',
   'encuentra', 'encontro', 'consigue', 'gana', 'junta', 'agrega',
 ];
-const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral'];
+const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral', 'racimo', 'bolsa', 'canoa', 'caja'];
 
 /**
  * Valida la narrativa del modelo antes de mostrársela a un niño.

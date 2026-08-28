@@ -25,10 +25,16 @@ function crearProblema(tema) {
   };
 }
 
-function narrativaRespaldo({ nombre, contexto, a, b, tema }) {
-  if (tema === 'multiplicacion') return `${nombre} tiene ${a} grupos de ${contexto} y en cada grupo hay ${b}. ¿Cuántos hay en total?`;
-  if (tema === 'resta') return `${nombre} tenía ${a} de ${contexto} y regaló ${b}. ¿Cuántos le quedaron?`;
-  return `${nombre} tiene ${a} de ${contexto} y le dan ${b} más. ¿Cuántos tiene ahora?`;
+const cosas = (c, n) => (n === 1 ? c.singular : c.plural);
+const cuantos = (c) => (c.genero === 'f' ? 'Cuántas' : 'Cuántos');
+const contextoTexto = (c) => `${c.plural} ${c.lugar}`;
+
+function narrativaRespaldo({ nombre, contexto: c, a, b, tema }) {
+  if (tema === 'multiplicacion')
+    return `${nombre} tiene ${a} ${a === 1 ? c.grupo : c.grupos} y en cada ${c.grupo} hay ${b} ${cosas(c, b)}. ¿${cuantos(c)} ${c.plural} hay en total?`;
+  if (tema === 'resta')
+    return `${nombre} tenía ${a} ${cosas(c, a)} ${c.lugar} y regaló ${b}. ¿${cuantos(c)} le quedaron?`;
+  return `${nombre} tiene ${a} ${cosas(c, a)} ${c.lugar} y le dan ${b} más. ¿${cuantos(c)} tiene ahora?`;
 }
 
 const N = Number(process.argv[2] || 9);
@@ -56,7 +62,7 @@ Problema: Marisol tiene 4 pelotas y su amiga le regala 2 más. ¿Cuántas pelota
 AHORA HAZLO TÚ
 Operación: ${p.a} ${p.operador} ${p.b}
 Personaje: ${p.nombre}
-Contexto: ${p.contexto}
+Contexto: ${contextoTexto(p.contexto)}
 Problema:`,
     }),
   }).then((r) => r.json());
@@ -77,7 +83,7 @@ Problema:`,
     'se fueron', 'se escaparon', 'presto'];
   const AGREGAR = ['mas', 'le dan', 'le da', 'le regalan', 'le regala', 'recibe', 'recibio',
     'encuentra', 'encontro', 'consigue', 'gana', 'junta', 'agrega'];
-  const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral'];
+  const AGRUPAR = ['cada', 'grupos', 'grupo', 'canasta', 'corral', 'racimo', 'bolsa', 'canoa', 'caja'];
   const tt = sinTildes(limpio || '');
   const quita = QUITAR.some((m) => tt.includes(m));
   const agrega = AGREGAR.some((m) => tt.includes(m));

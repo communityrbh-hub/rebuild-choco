@@ -60,13 +60,14 @@
     "matematicas": {
       "temas": ["suma", "resta", "multiplicacion"],
       "rangoEdad": [5, 10],
+      "_notaContextos": "Cada contexto trae singular, plural, género y su agrupador porque el enunciado de respaldo se arma con código, y el código no sabe gramática si no se la damos: sin esto sale 'tiene 1 de pelotas' o '4 canastas y en cada una hay 1 amigo'.",
       "contextosNarrativos": [
-        "canastas de mangos",
-        "plátanos en el río",
-        "pelotas en la cancha",
-        "amigos de la escuela",
-        "peces en la canoa",
-        "gallinas en el patio"
+        { "singular": "mango",   "plural": "mangos",   "lugar": "en la canasta", "genero": "m", "grupo": "canasta", "grupos": "canastas" },
+        { "singular": "plátano", "plural": "plátanos", "lugar": "en el río",     "genero": "m", "grupo": "racimo",  "grupos": "racimos" },
+        { "singular": "pelota",  "plural": "pelotas",  "lugar": "en la cancha",  "genero": "f", "grupo": "bolsa",   "grupos": "bolsas" },
+        { "singular": "lápiz",   "plural": "lápices",  "lugar": "en el salón",   "genero": "m", "grupo": "caja",    "grupos": "cajas" },
+        { "singular": "pez",     "plural": "peces",    "lugar": "en la canoa",   "genero": "m", "grupo": "canoa",   "grupos": "canoas" },
+        { "singular": "gallina", "plural": "gallinas", "lugar": "en el patio",   "genero": "f", "grupo": "corral",  "grupos": "corrales" }
       ],
       "nombresLocales": ["Yeison", "Marisol", "Danilo", "Yurany", "Esneider", "Luzmila"]
     },
