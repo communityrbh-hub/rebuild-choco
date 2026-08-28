@@ -1,0 +1,78 @@
+{
+  "id": "choco-sismo-2026",
+  "version": "1.0.0",
+  "descripcion": "Pack territorial para San José del Palmar, Chocó — sismo del 10 de agosto de 2026. Cambiar de territorio, de evento o de idioma se hace clonando este archivo.",
+
+  "territorio": {
+    "municipio": "San José del Palmar",
+    "departamento": "Chocó",
+    "pais": "Colombia",
+    "idioma": "es-CO",
+    "contextoCultural": "Población mayoritariamente afrodescendiente e indígena embera. Territorio rural y disperso del Pacífico colombiano.",
+    "conectividad": "baja",
+    "notaConectividad": "Una de las coberturas de internet fijo más bajas del país. La operación offline no es una preferencia técnica: es la única arquitectura viable."
+  },
+
+  "evento": {
+    "tipo": "sismo",
+    "magnitud": 7.4,
+    "fecha": "2026-08-10",
+    "epicentro": "San José del Palmar, Chocó",
+    "diasTranscurridos": null,
+    "explicacionInfantil": "La tierra a veces se mueve porque está hecha de placas enormes que se acomodan, como cuando estiras una goma y de pronto suelta un poquito. Ya pasó, y los adultos están trabajando para que todo esté seguro."
+  },
+
+  "datos": [
+    {
+      "etiqueta": "Sedes educativas afectadas",
+      "valor": null,
+      "fuente": null,
+      "estado": "VERIFICAR",
+      "nota": "No mostrar en la app hasta confirmar con fuente oficial (MinEducación / Secretaría de Educación del Chocó)."
+    },
+    {
+      "etiqueta": "Niños sin clases",
+      "valor": null,
+      "fuente": null,
+      "estado": "VERIFICAR",
+      "nota": "No mostrar en la app hasta confirmar con fuente oficial."
+    }
+  ],
+
+  "personaje": {
+    "nombre": "Rumi",
+    "especie": "oso",
+    "colorCuerpo": "#D4A373",
+    "colorPanza": "#FAEDCD",
+    "nota": "El personaje es parte del pack, no del código. Cambiarlo por una figura del Pacífico colombiano (rana, guacamaya, delfín rosado) solo requiere editar este bloque y el SVG correspondiente."
+  },
+
+  "emergencia": {
+    "titulo": "Si necesitas hablar con alguien ahora",
+    "lineas": [
+      { "numero": "123", "nombre": "Línea de emergencias nacional", "disponibilidad": "24 horas" },
+      { "numero": "141", "nombre": "ICBF — protección a niños, niñas y adolescentes", "disponibilidad": "24 horas" }
+    ],
+    "nota": "Solo números verificados. Nunca agregar una línea sin confirmación."
+  },
+
+  "curriculo": {
+    "matematicas": {
+      "temas": ["suma", "resta", "multiplicacion"],
+      "rangoEdad": [5, 10],
+      "contextosNarrativos": [
+        "canastas de mangos",
+        "plátanos en el río",
+        "pelotas en la cancha",
+        "amigos de la escuela",
+        "peces en la canoa",
+        "gallinas en el patio"
+      ],
+      "nombresLocales": ["Yeison", "Marisol", "Danilo", "Yurany", "Esneider", "Luzmila"]
+    },
+    "lectura": {
+      "rangoEdad": [5, 8],
+      "temas": ["frases cortas", "palabras del entorno"]
+    }
+  }
+}

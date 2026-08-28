@@ -1,0 +1,16 @@
+{
+  "name": "REBUILD — Rumi, tu compañero",
+  "short_name": "REBUILD",
+  "description": "Tutor de resiliencia con IA local para niños en zonas afectadas por desastres.",
+  "theme_color": "#F4A261",
+  "background_color": "#FFF8F0",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "es-CO",
+  "start_url": "./",
+  "scope": "./",
+  "icons": [
+    { "src": "./rumi.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./rumi.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
