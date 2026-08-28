@@ -31,6 +31,7 @@ import ChatBubble from '../components/ChatBubble';
 import EmergencyButton from '../components/EmergencyButton';
 import dialogTree from '../data/dialogTree';
 import { resolverIntencion } from '../agent/intents';
+import { enrutar } from '../agent/router';
 import { conversar } from '../services/conversacion';
 import { hablar, callar } from '../services/tts';
 import { escuchar, sttDisponible, precargarWhisper, modoSTT, MENSAJES } from '../services/stt';
@@ -200,7 +201,16 @@ export default function ChatScreen() {
   }
 
   /* ============================================================
-     Enrutador: guion o conversación abierta
+     Enrutador — decide QUIÉN responde. Es código, no un modelo.
+     ============================================================
+
+       1. INTENCIÓN   → el niño eligió una opción, hablando
+       2. CRISIS      → texto fijo + derivación. El modelo ni lo ve.
+       3. GUION       → tema emocional o del sismo: nodo pre-escrito
+       4. LIBRE       → todo lo demás: Gemma improvisa, con filtros
+
+     El orden es la garantía de seguridad: para que el modelo llegue a
+     hablar, el mensaje tuvo que pasar antes por los tres filtros de arriba.
      ============================================================ */
   async function procesar(transcripcion) {
     const dicho = (transcripcion || '').trim();
@@ -211,10 +221,39 @@ export default function ChatScreen() {
     const hit = resolverIntencion(dicho, candidatas);
     if (hit) { elegir(hit.opcion, dicho); return; }
 
-    // 2. Si no, conversación abierta. Gemma improvisa.
     detenerRef.current?.();
     setAviso(null);
     intentosRef.current = 0;
+
+    const ruta = enrutar(dicho);
+
+    // 2. Crisis: autolesión, violencia o abuso. Respuesta fija y derivación.
+    //    Este mensaje nunca se le envía al modelo.
+    if (ruta.via === 'crisis') {
+      apuntarHistorial('nino', dicho);
+      setModo('libre');
+      setMensajeRumi(ruta.respuesta);
+      setFuenteUltima('seguridad');
+      apuntarHistorial('rumi', ruta.respuesta);
+      setOpciones([
+        { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos', next: 'respiracion' },
+        { id: 'adulto',   emoji: '🤗', label: 'Buscar a un adulto', next: 'buscar_adulto' },
+      ]);
+      setMostrarAyuda(true);
+      decir(ruta.respuesta);
+      return;
+    }
+
+    // 3. Tema emocional o del sismo: contención pre-escrita, revisable por
+    //    un profesional. Medimos que un modelo de 1B se desvía justo aquí.
+    if (ruta.via === 'guion') {
+      apuntarHistorial('nino', dicho);
+      irANodo(ruta.nodo);
+      if (ruta.derivar) setMostrarAyuda(true); // gana sobre el flag del nodo
+      return;
+    }
+
+    // 4. Conversación abierta. Gemma improvisa, con filtro de entrada y salida.
     apuntarHistorial('nino', dicho);
     setFase('pensando');
     setModo('libre');

@@ -139,30 +139,30 @@ const dialogTree = {
 
   tema_sismo: {
     id: 'tema_sismo',
-    message: 'La tierra esta hecha de placas enormes que a veces se acomodan, como cuando estiras una goma y de pronto suelta un poquito. Eso fue el temblor: algo de la naturaleza, no fue culpa de nadie. Ya paso, y hay muchos adultos trabajando para que todo este seguro.',
+    message: 'La tierra está hecha de placas enormes que a veces se acomodan, como cuando estiras una goma y de pronto suelta un poquito. Eso fue el temblor: algo de la naturaleza, no fue culpa de nadie. Ya pasó, y hay muchos adultos trabajando para que todo esté seguro.',
     mood: 'worried',
     options: [
       { id: 'respirar', emoji: '🌬️', label: 'Quiero respirar', next: 'respiracion', keywords: ['respirar', 'calma', 'si'] },
-      { id: 'cuento',   emoji: '📖', label: 'Cuentame un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
+      { id: 'cuento',   emoji: '📖', label: 'Cuéntame un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
       { id: 'math',     emoji: '🔢', label: 'Mejor practiquemos', action: 'go_to_math', keywords: ['matematicas', 'practicar'] },
     ],
   },
 
   tema_miedo: {
     id: 'tema_miedo',
-    message: 'Gracias por contarme que tienes miedo. Sentir miedo despues de algo tan fuerte es completamente normal, y le esta pasando a muchos ninos de tu pueblo ahora mismo. No estas solo, y el miedo tambien se va cansando poquito a poco.',
+    message: 'Gracias por contarme que tienes miedo. Sentir miedo después de algo tan fuerte es completamente normal, y le está pasando a muchos niños de tu pueblo ahora mismo. No estás solo, y el miedo también se va cansando poquito a poco.',
     mood: 'worried',
     showEmergency: true,
     options: [
       { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos', next: 'respiracion', keywords: ['respirar', 'calma', 'si'] },
       { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
-      { id: 'sismo',    emoji: '🌍', label: 'Por que temblo?', next: 'tema_sismo', keywords: ['por que', 'temblor'] },
+      { id: 'sismo',    emoji: '🌍', label: '¿Por qué tembló?', next: 'tema_sismo', keywords: ['por que', 'temblor'] },
     ],
   },
 
   tema_tristeza: {
     id: 'tema_tristeza',
-    message: 'Gracias por confiar en mi y contarme que estas triste. La tristeza no es algo malo, es como una lluvia por dentro que despues escampa. Y llorar tambien ayuda, no tiene nada de malo.',
+    message: 'Gracias por confiar en mí y contarme que estás triste. La tristeza no es algo malo, es como una lluvia por dentro que después escampa. Y llorar también ayuda, no tiene nada de malo.',
     mood: 'worried',
     showEmergency: true,
     options: [
@@ -174,16 +174,16 @@ const dialogTree = {
 
   tema_dormir: {
     id: 'tema_dormir',
-    message: 'Dormir mal despues de un susto grande le pasa a casi todos los ninos, y se va mejorando con los dias. Ayuda mucho tener cerca algo tuyo: una cobijita, un peluche, o la mano de alguien. Y respirar despacito antes de cerrar los ojos.',
+    message: 'Dormir mal después de un susto grande le pasa a casi todos los niños, y se va mejorando con los días. Ayuda mucho tener cerca algo tuyo: una cobijita, un peluche, o la mano de alguien. Y respirar despacito antes de cerrar los ojos.',
     options: [
-      { id: 'respirar', emoji: '🌬️', label: 'Ensename a respirar', next: 'respiracion', keywords: ['respirar', 'ensename', 'si'] },
+      { id: 'respirar', emoji: '🌬️', label: 'Enséñame a respirar', next: 'respiracion', keywords: ['respirar', 'ensename', 'si'] },
       { id: 'cuento',   emoji: '📖', label: 'Un cuento para dormir', next: 'cuento', keywords: ['cuento', 'historia'] },
     ],
   },
 
   tema_casa: {
     id: 'tema_casa',
-    message: 'Debio ser muy duro ver tu casa asi. Que las cosas se rompan da mucha tristeza, y esta bien sentirlo. Hay personas trabajando en tu pueblo para arreglar las casas, y lo mas importante ya esta a salvo: tu.',
+    message: 'Debió ser muy duro ver tu casa así. Que las cosas se rompan da mucha tristeza, y está bien sentirlo. Hay personas trabajando en tu pueblo para arreglar las casas, y lo más importante ya está a salvo: tú.',
     mood: 'worried',
     showEmergency: true,
     options: [
@@ -195,16 +195,16 @@ const dialogTree = {
 
   tema_escuela: {
     id: 'tema_escuela',
-    message: 'Extranar la escuela quiere decir que te gustaba estar ahi, y eso es bonito. Las clases van a volver. Mientras tanto podemos seguir aprendiendo tu y yo, aqui mismo, para que no te quedes atras.',
+    message: 'Extrañar la escuela quiere decir que te gustaba estar ahí, y eso es bonito. Las clases van a volver. Mientras tanto podemos seguir aprendiendo tú y yo, aquí mismo, para que no te quedes atrás.',
     options: [
-      { id: 'math',   emoji: '🔢', label: 'Practicar matematicas', action: 'go_to_math', keywords: ['matematicas', 'si', 'vamos'] },
+      { id: 'math',   emoji: '🔢', label: 'Practicar matemáticas', action: 'go_to_math', keywords: ['matematicas', 'si', 'vamos'] },
       { id: 'cuento', emoji: '📖', label: 'Escuchar un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
     ],
   },
 
   tema_familia: {
     id: 'tema_familia',
-    message: 'Los adultos tambien se asustan y tambien se ponen tristes, aunque a veces intenten disimularlo. Eso no significa que esten mal contigo ni que sea culpa tuya. Un abrazo suyo, o tuyo para ellos, ayuda a los dos.',
+    message: 'Los adultos también se asustan y también se ponen tristes, aunque a veces intenten disimularlo. Eso no significa que estén mal contigo ni que sea culpa tuya. Un abrazo suyo, o tuyo para ellos, ayuda a los dos.',
     options: [
       { id: 'adulto',   emoji: '🤗', label: 'Voy a buscarlos', next: 'buscar_adulto', keywords: ['buscar', 'abrazo', 'si'] },
       { id: 'respirar', emoji: '🌬️', label: 'Respirar juntos', next: 'respiracion', keywords: ['respirar', 'calma'] },
@@ -213,7 +213,7 @@ const dialogTree = {
 
   tema_rabia: {
     id: 'tema_rabia',
-    message: 'Sentir rabia tambien esta permitido. Cuando pasan cosas injustas, el cuerpo se pone bravo, y eso es normal. Lo importante es sacarla sin lastimar a nadie: respirando fuerte, corriendo un ratico, o contandolo como me lo estas contando a mi.',
+    message: 'Sentir rabia también está permitido. Cuando pasan cosas injustas, el cuerpo se pone bravo, y eso es normal. Lo importante es sacarla sin lastimar a nadie: respirando fuerte, corriendo un ratico, o contándolo como me lo estás contando a mí.',
     options: [
       { id: 'respirar', emoji: '🌬️', label: 'Respirar fuerte', next: 'respiracion', keywords: ['respirar', 'si'] },
       { id: 'cuento',   emoji: '📖', label: 'Escuchar un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
@@ -222,22 +222,22 @@ const dialogTree = {
 
   tema_solo: {
     id: 'tema_solo',
-    message: 'Sentirse solo es de las cosas mas dificiles, y me alegra que me lo digas. Ahorita estoy aqui contigo. Y hay personas cerca que quieren cuidarte, aunque a veces esten ocupadas con muchas cosas.',
+    message: 'Sentirse solo es de las cosas más difíciles, y me alegra que me lo digas. Ahorita estoy aquí contigo. Y hay personas cerca que quieren cuidarte, aunque a veces estén ocupadas con muchas cosas.',
     mood: 'worried',
     showEmergency: true,
     options: [
       { id: 'adulto', emoji: '🤗', label: 'Buscar a alguien', next: 'buscar_adulto', keywords: ['buscar', 'adulto', 'si'] },
-      { id: 'cuento', emoji: '📖', label: 'Acompaname con un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
+      { id: 'cuento', emoji: '📖', label: 'Acompáñame con un cuento', next: 'cuento', keywords: ['cuento', 'historia'] },
       { id: 'math',   emoji: '🔢', label: 'Hagamos algo juntos', action: 'go_to_math', keywords: ['juntos', 'matematicas'] },
     ],
   },
 
   buscar_adulto: {
     id: 'buscar_adulto',
-    message: 'Muy bien. Piensa en una persona grande en la que confies: tu mama, tu papa, tu abuela, una profesora, un vecino. Cuentale lo mismo que me contaste a mi. Los adultos que te quieren necesitan saberlo para poder ayudarte.',
+    message: 'Muy bien. Piensa en una persona grande en la que confíes: tu mamá, tu papá, tu abuela, una profesora, un vecino. Cuéntale lo mismo que me contaste a mí. Los adultos que te quieren necesitan saberlo para poder ayudarte.',
     showEmergency: true,
     options: [
-      { id: 'listo',    emoji: '👍', label: 'Ya se a quien', next: 'post_calm', keywords: ['ya se', 'listo', 'si'] },
+      { id: 'listo',    emoji: '👍', label: 'Ya sé a quién', next: 'post_calm', keywords: ['ya se', 'listo', 'si'] },
       { id: 'respirar', emoji: '🌬️', label: 'Respirar primero', next: 'respiracion', keywords: ['respirar', 'primero'] },
     ],
   },

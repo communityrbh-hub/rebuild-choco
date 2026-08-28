@@ -25,10 +25,10 @@
  * llegue nunca a un niño.
  */
 
-import * as ollama from './ollama';
-import * as gemini from './gemini';
-import { esLocal } from './runtime';
-import { revisarEntrada, revisarSalida } from '../agent/seguridad';
+import * as ollama from './ollama.js';
+import * as gemini from './gemini.js';
+import { esLocal } from './runtime.js';
+import { revisarEntrada, revisarSalida } from '../agent/seguridad.js';
 import pack from '../packs/choco-sismo-2026.json';
 
 const backend = esLocal ? ollama : gemini;

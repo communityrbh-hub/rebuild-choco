@@ -24,39 +24,23 @@
  * cuesta poco; una improvisación dañina cuesta demasiado.
  */
 
-import { revisarEntrada, normalizar } from './seguridad';
+import { revisarEntrada, normalizar } from './seguridad.js';
 
 /**
  * Temas que SIEMPRE responde el guion escrito.
  * El orden importa: gana la primera coincidencia.
  */
 const TEMAS_GUION = [
+  // ⚠️ EL ORDEN ES LA LÓGICA. Gana la primera coincidencia, así que los temas
+  // con señales específicas ("mi mamá", "mi casa", "mi escuela") van antes que
+  // los emocionales genéricos. Sin esto, "mi mamá está llorando" caería en
+  // tristeza en vez de familia, y el niño recibiría contención del tema
+  // equivocado.
   {
     nodo: 'tema_sismo',
     claves: [
       'temblor', 'tembló', 'temblo', 'temblar', 'sismo', 'terremoto', 'se movio',
       'se movió', 'la tierra', 'replica', 'réplica', 'volver a temblar',
-    ],
-  },
-  {
-    nodo: 'tema_miedo',
-    claves: [
-      'miedo', 'susto', 'asustado', 'asustada', 'asusta', 'terror', 'panico',
-      'pánico', 'nervioso', 'nerviosa', 'tiemblo', 'me da cosa',
-    ],
-  },
-  {
-    nodo: 'tema_tristeza',
-    claves: [
-      'triste', 'tristeza', 'llorar', 'lloro', 'llore', 'lloré', 'llorando',
-      'deprimido', 'sin ganas', 'no quiero nada', 'me siento mal',
-    ],
-  },
-  {
-    nodo: 'tema_dormir',
-    claves: [
-      'no puedo dormir', 'dormir', 'pesadilla', 'pesadillas', 'sueno feo',
-      'sueño feo', 'me despierto', 'en la noche', 'de noche',
     ],
   },
   {
@@ -84,12 +68,38 @@ const TEMAS_GUION = [
     ],
   },
   {
+    nodo: 'tema_dormir',
+    claves: [
+      'no puedo dormir', 'dormir', 'pesadilla', 'pesadillas', 'sueno feo',
+      'sueño feo', 'me despierto', 'en la noche', 'de noche',
+    ],
+  },
+  {
+    nodo: 'tema_miedo',
+    claves: [
+      'miedo', 'susto', 'asustado', 'asustada', 'asusta', 'terror', 'panico',
+      'pánico', 'nervioso', 'nerviosa', 'tiemblo', 'me da cosa',
+    ],
+  },
+  {
+    nodo: 'tema_tristeza',
+    claves: [
+      'triste', 'tristeza', 'llorar', 'lloro', 'llore', 'lloré', 'llorando',
+      'deprimido', 'sin ganas', 'no quiero nada', 'me siento mal',
+    ],
+  },
+  {
     nodo: 'tema_rabia',
     claves: ['rabia', 'bravo', 'brava', 'enojado', 'enojada', 'furioso', 'odio', 'injusto'],
   },
   {
     nodo: 'tema_solo',
-    claves: ['solo', 'sola', 'soledad', 'nadie juega', 'no tengo amigos', 'me siento solo'],
+    // 'solo' suelto NO va: "yo solo quiero jugar" no es soledad.
+    claves: [
+      'me siento solo', 'me siento sola', 'estoy solo', 'estoy sola',
+      'muy solo', 'muy sola', 'soledad', 'nadie juega', 'nadie quiere jugar',
+      'no tengo amigos', 'no tengo con quien',
+    ],
   },
 ];
 

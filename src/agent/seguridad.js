@@ -81,12 +81,27 @@ export function revisarEntrada(texto) {
    Filtro de SALIDA — revisa lo que el modelo quiere decir
    ============================================================ */
 
-/* Un modelo de 1B se desvía. Si aparece algo de esto, no se muestra. */
+/*
+ * Un modelo de 1B se desvía. Si aparece algo de esto, no se muestra.
+ *
+ * Son RAÍCES, no palabras completas, y ese detalle importa: la lista original
+ * tenía 'muerte' y 'murieron' pero no 'murió', y dejaba pasar entera la frase
+ * "mucha gente murió en el temblor". Con raíces, una conjugación nueva no
+ * abre un hueco.
+ */
 const PROHIBIDO = [
-  'muerte', 'muertos', 'murieron', 'cadaver', 'sangre', 'matar', 'suicid',
+  // muerte y daño físico
+  'muert', 'muri', 'morir', 'fallec', 'cadaver', 'sangre', 'herido', 'heridos',
+  'matar', 'mataron', 'suicid', 'lastimar a',
+  // objetos y sustancias
   'arma', 'pistola', 'cuchillo', 'droga', 'alcohol', 'sexo', 'sexual',
-  'infierno', 'castigo de dios', 'te van a', 'vas a morir',
+  // amenaza y culpa
+  'infierno', 'castigo de dios', 'te van a', 'vas a morir', 'es tu culpa',
 ];
+
+/* Palabras que no existen en español: si aparecen, el modelo cambió de idioma. */
+const INGLES =
+  /\b(the|and|you|your|what|that|this|with|have|they|there|here|about|tell|sounds|because|hello|please|thank|sorry|would|could|should|i am|it is|going to)\b/i;
 
 /* Frases alarmistas: prohibidas hablando con un niño tras un sismo. */
 const ALARMISTA = [
@@ -107,8 +122,11 @@ export function revisarSalida(texto) {
   if (PROHIBIDO.some((p) => t.includes(normalizar(p)))) return { ok: false, motivo: 'contenido' };
   if (ALARMISTA.some((p) => t.includes(normalizar(p)))) return { ok: false, motivo: 'alarmista' };
 
-  // El modelo se fue al inglés (pasa en modelos pequeños).
-  if (/\b(the|and|you|what|because|i am|it is)\b/i.test(texto)) return { ok: false, motivo: 'idioma' };
+  // El modelo se fue al inglés (pasa mucho en modelos pequeños).
+  // La lista corta de antes dejaba pasar frases enteras como
+  // "that sounds nice, tell me more about it": ninguna de sus palabras
+  // estaba en ella. Estas son palabras que no existen en español.
+  if (INGLES.test(texto)) return { ok: false, motivo: 'idioma' };
 
   // Se puso a hablar consigo mismo o repitió el andamiaje del prompt.
   if (/^(rumi|asistente|usuario|ni[nñ]o)\s*:/i.test(texto.trim())) return { ok: false, motivo: 'formato' };

@@ -16,8 +16,8 @@
  * keywords del árbol de diálogo. Ver regla #3.
  */
 
-import { modoSTT, infoSTT } from './runtime';
-import { crearDetector } from './vad';
+import { modoSTT, infoSTT } from './runtime.js';
+import { crearDetector } from './vad.js';
 
 export { modoSTT, infoSTT };
 

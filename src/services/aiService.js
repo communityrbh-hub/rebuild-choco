@@ -24,9 +24,9 @@
  * La app nunca se queda muda ni muestra un resultado sin verificar.
  */
 
-import * as ollama from './ollama';
-import * as gemini from './gemini';
-import { esLocal, infoBackend } from './runtime';
+import * as ollama from './ollama.js';
+import * as gemini from './gemini.js';
+import { esLocal, infoBackend } from './runtime.js';
 import pack from '../packs/choco-sismo-2026.json';
 
 export { esLocal, infoBackend };
